@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TLC Simulator</title>
+
+<style>
+
+body{
+    margin:0;
+    font-family:Arial,sans-serif;
+    background:#ececec;
+    color:#222;
+}
+
+.container{
+    display:flex;
+    min-height:100vh;
+}
+
+.sidebar{
+    width:380px;
+    background:white;
+    padding:18px;
+    overflow-y:auto;
+    box-shadow:2px 0 10px rgba(0,0,0,0.08);
+}
+
+.main{
+    flex:1;
+    padding:20px;
+}
+
+h1{
+    margin-top:0;
+    font-size:22px;
+}
+
+.control{
+    margin-bottom:16px;
+}
+
+label{
+    display:block;
+    margin-bottom:5px;
+    font-size:14px;
+}
+
+canvas{
+    background:#f9f9f4;
+    border:1px solid #888;
+    width:100%;
+    max-width:1000px;
+}
+
+button{
+    padding:10px 14px;
+    border:none;
+    background:#222;
+    color:white;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#444;
+}
+
+select[multiple]{
+    width:100%;
+    height:220px;
+}
+
+.metrics{
+    margin-top:20px;
+    background:white;
+    border:1px solid #ccc;
+    padding:12px;
+    max-width:1000px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:5px;
+    text-align:center;
+}
+
+th{
+    background:#efefef;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="sidebar">
+
+<h1>Simulador TLC</h1>
+
+<div class="control">
+<label>Compuestos</label>
+<select multiple id="compoundSelect"></select>
+</div>
+
+<div class="control">
+<button id="selectAll">Seleccionar todos</button>
+</div>
+
+<div class="control">
+<label>Fase estacionaria</label>
+<select id="stationary">
+<option value="silica">Sílica</option>
+<option value="alumina">Alúmina</option>
+<option value="rp18">RP18</option>
+</select>
+</div>
+
+<div class="control">
+<label>Polaridad eluyente: <span id="eluentVal"></span></label>
+<input type="range" id="eluent" min="0" max="1" step="0.01" value="0.60">
+</div>
+
+<div class="control">
+<label>pH: <span id="phVal"></span></label>
+<input type="range" id="ph" min="1" max="14" step="0.1" value="7.0">
+</div>
+
+<div class="control">
+<label>Humedad: <span id="humidityVal"></span></label>
+<input type="range" id="humidity" min="0" max="1" step="0.01" value="0.40">
+</div>
+
+<div class="control">
+<label>Cantidad muestra: <span id="loadVal"></span></label>
+<input type="range" id="load" min="0.05" max="1.5" step="0.01" value="0.30">
+</div>
+
+<div class="control">
+<label>Distancia corrida (cm)</label>
+<select id="distance">
+<option>4</option>
+<option>6</option>
+<option selected>8</option>
+<option>10</option>
+</select>
+</div>
+
+<div class="control">
+<label>Saturación cámara</label>
+<select id="saturation">
+<option value="0.6">Baja</option>
+<option selected value="1.0">Media</option>
+<option value="1.3">Alta</option>
+</select>
+</div>
+
+<div class="control">
+<button id="simulateBtn">Simular TLC</button>
+<button id="resetBtn">Reset</button>
+</div>
+
+<div class="control">
+<button id="exportBtn">Exportar PNG</button>
+</div>
+
+</div>
+
+<div class="main">
+
+<canvas id="tlcCanvas" width="900" height="700"></canvas>
+
+<div class="metrics">
+
+<table>
+<thead>
+<tr>
+<th>Compuesto</th>
+<th>Rf</th>
+<th>Ancho</th>
+<th>Tailing</th>
+<th>UV</th>
+</tr>
+</thead>
+
+<tbody id="resultsBody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const compounds = [
+
+{
+name:"Caffeine",
+polarity:0.72,
+logP:-0.1,
+pKa:14,
+hbond:0.8,
+uv:true,
+color:"#5b5bff"
+},
+
+{
+name:"Ibuprofen",
+polarity:0.35,
+logP:3.5,
+pKa:4.9,
+hbond:0.3,
+uv:true,
+color:"#ff5b5b"
+},
+
+{
+name:"Paracetamol",
+polarity:0.68,
+logP:0.5,
+pKa:9.5,
+hbond:0.7,
+uv:true,
+color:"#44aa55"
+},
+
+{
+name:"Aspirin",
+polarity:0.60,
+logP:1.2,
+pKa:3.5,
+hbond:0.5,
+uv:true,
+color:"#aa55aa"
+},
+
+{
+name:"Naproxen",
+polarity:0.42,
+logP:3.2,
+pKa:4.2,
+hbond:0.2,
+uv:true,
+color:"#ffaa22"
+},
+
+{
+name:"Lidocaine",
+polarity:0.55,
+logP:3.4,
+pKa:7.9,
+hbond:0.4,
+uv:true,
+color:"#00aaaa"
+},
+
+{
+name:"Benzocaine",
+polarity:0.28,
+logP:1.9,
+pKa:3.5,
+hbond:0.2,
+uv:true,
+color:"#777777"
+}
+
+];
+
+const canvas = document.getElementById("tlcCanvas");
+const ctx = canvas.getContext("2d");
+
+const compoundSelect = document.getElementById("compoundSelect");
+
+compounds.forEach((c,idx)=>{
+
+    const opt = document.createElement("option");
+
+    opt.value = idx;
+    opt.textContent = c.name;
+
+    compoundSelect.appendChild(opt);
+
+});
+
+const controls = {
+
+    eluent:document.getElementById("eluent"),
+    ph:document.getElementById("ph"),
+    humidity:document.getElementById("humidity"),
+    load:document.getElementById("load")
+
+};
+
+const labels = {
+
+    eluentVal:document.getElementById("eluentVal"),
+    phVal:document.getElementById("phVal"),
+    humidityVal:document.getElementById("humidityVal"),
+    loadVal:document.getElementById("loadVal")
+
+};
+
+function updateLabels(){
+
+    labels.eluentVal.textContent = controls.eluent.value;
+    labels.phVal.textContent = controls.ph.value;
+    labels.humidityVal.textContent = controls.humidity.value;
+    labels.loadVal.textContent = controls.load.value;
+
+}
+
+function stationaryAffinity(compound,phase){
+
+    if(phase==="silica"){
+        return compound.polarity * 1.2 + compound.hbond*0.5;
+    }
+
+    if(phase==="alumina"){
+        return compound.polarity * 1.0 + compound.hbond*0.7;
+    }
+
+    if(phase==="rp18"){
+        return (1-compound.polarity) + compound.logP*0.15;
+    }
+
+    return 1;
+}
+
+function ionizationCorrection(compound,pH){
+
+    return 1/(1+Math.abs(pH-compound.pKa)*0.15);
+}
+
+function calculateRf(compound){
+
+    const E = parseFloat(document.getElementById("eluent").value);
+
+    const phase = document.getElementById("stationary").value;
+
+    const pH = parseFloat(document.getElementById("ph").value);
+
+    const sat = parseFloat(document.getElementById("saturation").value);
+
+    const A = stationaryAffinity(compound,phase);
+
+    const I = ionizationCorrection(compound,pH);
+
+    const noise = (Math.random()-0.5)*0.04;
+
+    let rf = (0.95*E*sat) - (0.28*A) + (0.18*I) + noise;
+
+    if(rf<0.02){
+        rf = 0.02;
+    }
+
+    if(rf>0.98){
+        rf = 0.98;
+    }
+
+    return rf;
+}
+
+function spotWidth(){
+
+    const load = parseFloat(document.getElementById("load").value);
+
+    return 10 + load*18;
+}
+
+function tailingFactor(){
+
+    const load = parseFloat(document.getElementById("load").value);
+
+    const humidity = parseFloat(document.getElementById("humidity").value);
+
+    return 1 + (0.7*load) + (0.5*humidity);
+}
+
+function drawPlate(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    ctx.fillStyle = "#f8f8f2";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    const plateX = 250;
+    const plateY = 40;
+    const plateW = 400;
+    const plateH = 580;
+
+    ctx.strokeStyle = "#555";
+    ctx.lineWidth = 3;
+
+    ctx.strokeRect(plateX,plateY,plateW,plateH);
+
+    const baselineY = plateY + plateH - 60;
+
+    ctx.strokeStyle = "#444";
+
+    ctx.beginPath();
+    ctx.moveTo(plateX+20,baselineY);
+    ctx.lineTo(plateX+plateW-20,baselineY);
+    ctx.stroke();
+
+    ctx.fillStyle = "#222";
+    ctx.font = "14px Arial";
+
+    ctx.fillText("Baseline",plateX+10,baselineY+20);
+
+    const solventFrontY = plateY + 30;
+
+    ctx.setLineDash([6,6]);
+
+    ctx.beginPath();
+    ctx.moveTo(plateX+20,solventFrontY);
+    ctx.lineTo(plateX+plateW-20,solventFrontY);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    ctx.fillText("Solvent front",plateX+10,solventFrontY-10);
+
+}
+
+function simulate(){
+
+    drawPlate();
+
+    const selected = Array.from(compoundSelect.selectedOptions)
+    .map(o=> compounds[o.value]);
+
+    const distanceCm = parseFloat(document.getElementById("distance").value);
+
+    const plateX = 250;
+    const plateY = 40;
+    const plateW = 400;
+    const plateH = 580;
+
+    const baselineY = plateY + plateH - 60;
+
+    const solventFrontY = plateY + 30;
+
+    const migrationRange = baselineY - solventFrontY;
+
+    const resultsBody = document.getElementById("resultsBody");
+
+    resultsBody.innerHTML = "";
+
+    selected.forEach((compound,idx)=>{
+
+        const rf = calculateRf(compound);
+
+        const width = spotWidth();
+
+        const tailing = tailingFactor();
+
+        const y = baselineY - (rf * migrationRange);
+
+        const x = plateX + 60 + idx*45;
+
+        const tailWidth = width * tailing;
+
+        const grad = ctx.createRadialGradient(
+            x,y,2,
+            x,y,tailWidth
+        );
+
+        grad.addColorStop(0,compound.color);
+        grad.addColorStop(1,"rgba(255,255,255,0.02)");
+
+        ctx.beginPath();
+
+        ctx.ellipse(
+            x,
+            y,
+            tailWidth*0.45,
+            width*0.55,
+            0,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(0,0,0,0.2)";
+        ctx.stroke();
+
+        if(compound.uv){
+
+            ctx.beginPath();
+
+            ctx.arc(x,y,3,0,Math.PI*2);
+
+            ctx.fillStyle = "#111";
+            ctx.fill();
+        }
+
+        ctx.fillStyle = "#222";
+        ctx.font = "12px Arial";
+
+        ctx.fillText(
+            compound.name,
+            x-20,
+            baselineY+35
+        );
+
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+        <td>${compound.name}</td>
+        <td>${rf.toFixed(4)}</td>
+        <td>${width.toFixed(3)}</td>
+        <td>${tailing.toFixed(4)}</td>
+        <td>${compound.uv ? "Sí" : "No"}</td>
+        `;
+
+        resultsBody.appendChild(row);
+
+    });
+
+}
+
+document.getElementById("simulateBtn")
+.addEventListener("click",simulate);
+
+document.getElementById("resetBtn")
+.addEventListener("click",()=>{
+
+    document.getElementById("eluent").value = 0.60;
+    document.getElementById("ph").value = 7.0;
+    document.getElementById("humidity").value = 0.40;
+    document.getElementById("load").value = 0.30;
+
+    updateLabels();
+
+    simulate();
+
+});
+
+document.getElementById("selectAll")
+.addEventListener("click",()=>{
+
+    Array.from(compoundSelect.options)
+    .forEach(o=> o.selected = true);
+
+    simulate();
+
+});
+
+document.getElementById("exportBtn")
+.addEventListener("click",()=>{
+
+    const link = document.createElement("a");
+
+    link.download = "tlc_simulator.png";
+    link.href = canvas.toDataURL();
+
+    link.click();
+
+});
+
+Object.values(controls)
+.forEach(el=>{
+
+    el.addEventListener("input",()=>{
+
+        updateLabels();
+
+        simulate();
+
+    });
+
+});
+
+Array.from(compoundSelect.options)
+.slice(0,4)
+.forEach(o=> o.selected = true);
+
+updateLabels();
+
+simulate();
+
+</script>
+
+</body>
+</html>
