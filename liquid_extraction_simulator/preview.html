@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Extracción Líquido-Líquido</title>
+
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#ececec;color:#222}
+.container{display:flex;min-height:100vh}
+.sidebar{width:380px;background:white;padding:18px;overflow-y:auto;box-shadow:2px 0 10px rgba(0,0,0,.08)}
+.main{flex:1;padding:20px}
+h1{margin-top:0;font-size:22px}
+.control{margin-bottom:16px}
+label{display:block;margin-bottom:5px;font-size:14px}
+button{padding:10px 14px;border:none;background:#222;color:white;cursor:pointer;margin-right:6px;margin-top:6px}
+button:hover{background:#444}
+canvas{width:100%;max-width:900px;background:white;border:1px solid #999}
+.metrics{margin-top:20px;background:white;border:1px solid #ccc;padding:12px;max-width:900px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid #ccc;padding:6px;text-align:center}
+th{background:#efefef}
+.message{margin-top:14px;padding:10px;background:#f5f5f5;border-left:4px solid #666;font-size:14px}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="sidebar">
+
+<h1>Extracción Líquido-Líquido</h1>
+
+<div class="control">
+<label>Compuesto</label>
+<select id="compound"></select>
+</div>
+
+<div class="control">
+<label>Solvente orgánico</label>
+<select id="solvent"></select>
+</div>
+
+<div class="control">
+<label>Volumen fase acuosa (mL): <span id="vaqVal"></span></label>
+<input type="range" id="vaq" min="20" max="500" step="10" value="100">
+</div>
+
+<div class="control">
+<label>Volumen fase orgánica (mL): <span id="vorgVal"></span></label>
+<input type="range" id="vorg" min="20" max="500" step="10" value="100">
+</div>
+
+<div class="control">
+<label>Masa inicial (mg): <span id="massVal"></span></label>
+<input type="range" id="mass" min="10" max="2000" step="10" value="500">
+</div>
+
+<div class="control">
+<label>Temperatura (°C): <span id="tempVal"></span></label>
+<input type="range" id="temp" min="5" max="60" step="1" value="25">
+</div>
+
+<div class="control">
+<label>Intensidad agitación: <span id="shakeVal"></span></label>
+<input type="range" id="shake" min="0" max="1" step="0.01" value="0.45">
+</div>
+
+<div class="control">
+<label>Tiempo equilibrio (s): <span id="eqVal"></span></label>
+<input type="range" id="equilibrium" min="5" max="120" step="1" value="30">
+</div>
+
+<div class="control">
+<label>Número extracciones</label>
+<select id="nExtract">
+<option>1</option>
+<option>2</option>
+<option selected>3</option>
+<option>4</option>
+<option>5</option>
+</select>
+</div>
+
+<div class="control">
+<button id="shakeBtn">Agitar</button>
+<button id="settleBtn">Decantar</button>
+<button id="extractBtn">Realizar extracción</button>
+</div>
+
+<div class="control">
+<button id="exportBtn">Exportar PNG</button>
+</div>
+
+</div>
+
+<div class="main">
+
+<canvas id="canvas" width="900" height="700"></canvas>
+
+<div class="metrics">
+
+<table>
+<thead>
+<tr>
+<th>Masa acuosa</th>
+<th>Masa orgánica</th>
+<th>% extraído</th>
+<th>Rendimiento</th>
+<th>Emulsión</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td id="mAq"></td>
+<td id="mOrg"></td>
+<td id="percent"></td>
+<td id="yield"></td>
+<td id="emulsion"></td>
+</tr>
+</tbody>
+</table>
+
+<div class="message" id="message">
+Sistema listo.
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const compounds = [
+
+{name:"Cafeína",logP:-0.1,K:0.4,color:"#5d7cff",volatility:0.2,solubility:0.9},
+{name:"Ibuprofeno",logP:3.5,K:8.5,color:"#ff6666",volatility:0.1,solubility:0.2},
+{name:"Naproxeno",logP:3.2,K:7.0,color:"#ffaa44",volatility:0.1,solubility:0.25},
+{name:"Benzocaína",logP:1.9,K:2.8,color:"#999999",volatility:0.25,solubility:0.5},
+{name:"Paracetamol",logP:0.5,K:0.9,color:"#44aa55",volatility:0.05,solubility:0.8}
+
+];
+
+const solvents = [
+
+{name:"Hexano",polarity:0.1,density:0.66,color:"rgba(255,230,120,0.65)"},
+{name:"Éter etílico",polarity:0.25,density:0.71,color:"rgba(240,240,210,0.65)"},
+{name:"Acetato de etilo",polarity:0.45,density:0.90,color:"rgba(200,255,180,0.65)"},
+{name:"Diclorometano",polarity:0.35,density:1.33,color:"rgba(180,220,255,0.65)"},
+{name:"Tolueno",polarity:0.2,density:0.87,color:"rgba(255,200,160,0.65)"}
+
+];
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const compoundSelect = document.getElementById("compound");
+const solventSelect = document.getElementById("solvent");
+
+compounds.forEach((c,i)=>{
+
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = c.name;
+
+    compoundSelect.appendChild(opt);
+
+});
+
+solvents.forEach((s,i)=>{
+
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = s.name;
+
+    solventSelect.appendChild(opt);
+
+});
+
+const controls = {
+
+    vaq:document.getElementById("vaq"),
+    vorg:document.getElementById("vorg"),
+    mass:document.getElementById("mass"),
+    temp:document.getElementById("temp"),
+    shake:document.getElementById("shake"),
+    equilibrium:document.getElementById("equilibrium")
+
+};
+
+const labels = {
+
+    vaqVal:document.getElementById("vaqVal"),
+    vorgVal:document.getElementById("vorgVal"),
+    massVal:document.getElementById("massVal"),
+    tempVal:document.getElementById("tempVal"),
+    shakeVal:document.getElementById("shakeVal"),
+    eqVal:document.getElementById("eqVal")
+
+};
+
+function seededRandom(seed){
+
+    let x = Math.sin(seed) * 10000;
+
+    return x - Math.floor(x);
+
+}
+
+function updateLabels(){
+
+    labels.vaqVal.textContent = controls.vaq.value;
+    labels.vorgVal.textContent = controls.vorg.value;
+    labels.massVal.textContent = controls.mass.value;
+    labels.tempVal.textContent = controls.temp.value;
+    labels.shakeVal.textContent = controls.shake.value;
+    labels.eqVal.textContent = controls.equilibrium.value;
+
+}
+
+function calculateExtraction(){
+
+    const compound = compounds[compoundSelect.value];
+    const solvent = solvents[solventSelect.value];
+
+    const m0 = parseFloat(controls.mass.value);
+
+    const Vaq = parseFloat(controls.vaq.value);
+    const Vorg = parseFloat(controls.vorg.value);
+
+    const n = parseFloat(document.getElementById("nExtract").value);
+
+    const shake = parseFloat(controls.shake.value);
+
+    const temp = parseFloat(controls.temp.value);
+
+    let K = compound.K;
+
+    K *= (1 + solvent.polarity*0.15);
+    K *= (1 + ((temp-25)/100));
+
+    const seed = m0 + Vaq + Vorg + n;
+
+    const noise = (seededRandom(seed)-0.5)*0.04;
+
+    K += noise;
+
+    let efficiency = Math.pow(
+        Vaq / ((K * Vorg) + Vaq),
+        n
+    );
+
+    let mAq = m0 * efficiency;
+    let mOrg = m0 - mAq;
+
+    let emulsion = false;
+
+    if(shake > 0.75){
+
+        if(seededRandom(seed+42) > 0.4){
+
+            emulsion = true;
+
+            mOrg *= 0.85;
+
+            mAq = m0 - mOrg;
+        }
+    }
+
+    const losses = m0 * (0.01 + seededRandom(seed+77)*0.03);
+
+    mOrg -= losses;
+
+    const extracted = (mOrg/m0)*100;
+
+    return {
+
+        mAq,
+        mOrg,
+        extracted,
+        losses,
+        emulsion,
+        solvent,
+        compound
+
+    };
+
+}
+
+function drawFunnel(result,shaking=false){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const centerX = canvas.width/2;
+
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 4;
+
+    ctx.beginPath();
+
+    ctx.moveTo(centerX-120,80);
+    ctx.lineTo(centerX+120,80);
+    ctx.lineTo(centerX+60,420);
+    ctx.lineTo(centerX+15,520);
+    ctx.lineTo(centerX+15,620);
+    ctx.lineTo(centerX-15,620);
+    ctx.lineTo(centerX-15,520);
+    ctx.lineTo(centerX-60,420);
+    ctx.closePath();
+
+    ctx.stroke();
+
+    const density = result.solvent.density;
+
+    const organicTop = density < 1;
+
+    const totalHeight = 300;
+
+    const aqHeight = totalHeight * 0.5;
+    const orgHeight = totalHeight * 0.5;
+
+    const topY = 100;
+
+    if(organicTop){
+
+        ctx.fillStyle = result.solvent.color;
+        ctx.fillRect(centerX-110,topY,220,orgHeight);
+
+        ctx.fillStyle = "rgba(120,180,255,0.6)";
+        ctx.fillRect(centerX-110,topY+orgHeight,220,aqHeight);
+
+    }else{
+
+        ctx.fillStyle = "rgba(120,180,255,0.6)";
+        ctx.fillRect(centerX-110,topY,220,aqHeight);
+
+        ctx.fillStyle = result.solvent.color;
+        ctx.fillRect(centerX-110,topY+aqHeight,220,orgHeight);
+
+    }
+
+    const intensity =
+        Math.min(result.mOrg / parseFloat(controls.mass.value),1);
+
+    ctx.globalAlpha = intensity;
+
+    ctx.fillStyle = result.compound.color;
+
+    ctx.beginPath();
+    ctx.arc(centerX,topY+150,60,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+
+    if(shaking){
+
+        for(let i=0;i<60;i++){
+
+            ctx.beginPath();
+
+            const x = centerX-90 + Math.random()*180;
+            const y = topY + Math.random()*280;
+
+            ctx.arc(x,y,2,0,Math.PI*2);
+
+            ctx.fillStyle = "rgba(255,255,255,0.5)";
+            ctx.fill();
+        }
+    }
+
+    ctx.fillStyle = "#222";
+    ctx.font = "15px Arial";
+
+    ctx.fillText(
+        organicTop ?
+        "Fase orgánica arriba" :
+        "Fase orgánica abajo",
+        centerX-90,
+        50
+    );
+
+}
+
+function updateTable(result){
+
+    document.getElementById("mAq").textContent =
+        result.mAq.toFixed(4)+" mg";
+
+    document.getElementById("mOrg").textContent =
+        result.mOrg.toFixed(4)+" mg";
+
+    document.getElementById("percent").textContent =
+        result.extracted.toFixed(3)+" %";
+
+    document.getElementById("yield").textContent =
+        (100 - (result.mAq/parseFloat(controls.mass.value))*100).toFixed(3)+" %";
+
+    document.getElementById("emulsion").textContent =
+        result.emulsion ? "Sí" : "No";
+
+}
+
+function updateMessage(result){
+
+    let msg = "Extracción eficiente.";
+
+    if(result.emulsion){
+        msg = "Se formó emulsión. La separación se dificulta.";
+    }
+
+    if(result.losses > 15){
+        msg += " Se observan pérdidas experimentales.";
+    }
+
+    if(result.extracted < 35){
+        msg = "La extracción es poco eficiente.";
+    }
+
+    document.getElementById("message").textContent = msg;
+
+}
+
+function simulate(){
+
+    const result = calculateExtraction();
+
+    drawFunnel(result);
+
+    updateTable(result);
+
+    updateMessage(result);
+
+}
+
+document.getElementById("shakeBtn")
+.addEventListener("click",()=>{
+
+    const result = calculateExtraction();
+
+    drawFunnel(result,true);
+
+    document.getElementById("message").textContent =
+        "Agitación en curso.";
+
+});
+
+document.getElementById("settleBtn")
+.addEventListener("click",()=>{
+
+    simulate();
+
+    document.getElementById("message").textContent +=
+        " Las fases se separaron.";
+
+});
+
+document.getElementById("extractBtn")
+.addEventListener("click",simulate);
+
+document.getElementById("exportBtn")
+.addEventListener("click",()=>{
+
+    const link = document.createElement("a");
+
+    link.download = "extraccion_liquido_liquido.png";
+
+    link.href = canvas.toDataURL();
+
+    link.click();
+
+});
+
+Object.values(controls)
+.forEach(el=>{
+
+    el.addEventListener("input",()=>{
+
+        updateLabels();
+
+        simulate();
+
+    });
+
+});
+
+updateLabels();
+
+simulate();
+
+</script>
+
+</body>
+</html>
