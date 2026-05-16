@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PK Simulator — One-Compartment Pharmacokinetics</title>
+<style>
+:root {
+  --bg:        #f4f4f1;
+  --surface:   #ffffff;
+  --border:    #d0d0cc;
+  --border2:   #e8e8e4;
+  --text:      #1c1c1c;
+  --muted:     #666;
+  --accent:    #1a5faa;
+  --curve1:    #1a5faa;
+  --curve2:    #c04830;
+  --tc-bg:     rgba(60,160,60,0.10);
+  --tc-line:   #2a8a2a;
+  --tox-line:  #c04830;
+  --mic-line:  #c08820;
+  --grid:      #e0e0dc;
+  --panel:     280px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ── layout ── */
+#app {
+  display: grid;
+  grid-template-columns: var(--panel) 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+#topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+#topbar h1 { font-size: 15px; font-weight: 600; }
+#topbar .sub { font-size: 12px; color: var(--muted); }
+#topbar .spacer { flex: 1; }
+
+#topbar a {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+#topbar a:hover { text-decoration: underline; }
+
+#panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 14px 14px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ── panel controls ── */
+.section-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 12px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border2);
+}
+.section-hdr:first-child { margin-top: 0; }
+
+.ctrl { margin-bottom: 8px; }
+
+.ctrl label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 3px;
+}
+
+.ctrl .lname { font-weight: 500; color: var(--text); font-size: 12px; }
+.ctrl .lval  { font-variant-numeric: tabular-nums; color: var(--accent); font-size: 12px; font-weight: 600; }
+
+.ctrl input[type=range] {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.ctrl .hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.ctrl select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* ── stats strip ── */
+#stats {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat {
+  flex: 1;
+  padding: 8px 12px;
+  border-right: 1px solid var(--border2);
+  min-width: 0;
+}
+.stat:last-child { border-right: none; }
+
+.stat .sval {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat .slabel {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 1px;
+}
+
+/* ── canvases ── */
+#charts {
+  flex: 1;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  padding: 12px;
+  gap: 12px;
+  background: var(--bg);
+  min-height: 0;
+}
+
+#mainChart {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  width: 100%;
+  display: block;
+}
+
+#freeChart {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  width: 100%;
+  display: block;
+}
+
+/* ── ADME diagram ── */
+#adme-area {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 10px 14px;
+}
+
+#adme-area h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+#admeCanvas {
+  display: block;
+  width: 100%;
+}
+
+/* ── export button ── */
+#exportBtn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 7px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+#exportBtn:hover { background: #154e8e; }
+
+/* ── legend ── */
+#legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 6px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border2);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.leg-swatch {
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+/* ── tooltip ── */
+#tooltip {
+  position: fixed;
+  background: rgba(20,20,20,0.88);
+  color: #fff;
+  font-size: 11px;
+  padding: 5px 9px;
+  border-radius: 3px;
+  pointer-events: none;
+  display: none;
+  z-index: 100;
+  max-width: 200px;
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  #app { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
+  #panel { border-right: none; border-bottom: 1px solid var(--border); max-height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div id="topbar">
+    <h1>PK Simulator</h1>
+    <span class="sub">One-compartment · first-order absorption &amp; elimination</span>
+    <span class="spacer"></span>
+    <a href="../index.html">← All simulators</a>
+  </div>
+
+  <!-- LEFT PANEL -->
+  <div id="panel">
+
+    <div class="section-hdr">Dose &amp; Formulation</div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Total amount of drug administered">Dose (D)</span>
+        <span class="lval" id="vDose">500 mg</span>
+      </label>
+      <input type="range" id="sDose" min="50" max="2000" step="50" value="500">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Fraction of dose reaching systemic circulation (0–1)">Bioavailability (F)</span>
+        <span class="lval" id="vF">0.80</span>
+      </label>
+      <input type="range" id="sF" min="0" max="1" step="0.05" value="0.8">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Immediate vs. extended-release modifies ka automatically">Formulation</span>
+      </label>
+      <select id="sForm">
+        <option value="ir">Immediate release</option>
+        <option value="er">Extended release (slow ka)</option>
+      </select>
+      <div class="hint">Extended release lowers ka ÷ 5</div>
+    </div>
+
+    <div class="section-hdr">Absorption &amp; Elimination</div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Rate constant for drug absorption from gut. Higher = faster absorption.">Absorption rate (ka)</span>
+        <span class="lval" id="vKa">1.20 h⁻¹</span>
+      </label>
+      <input type="range" id="sKa" min="0.1" max="5" step="0.05" value="1.2">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Rate constant for drug elimination. Higher ke = shorter half-life.">Elimination rate (ke)</span>
+        <span class="lval" id="vKe">0.150 h⁻¹</span>
+      </label>
+      <input type="range" id="sKe" min="0.05" max="1" step="0.01" value="0.15">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Volume in which the drug appears to distribute. Larger Vd = more tissue distribution.">Volume of distribution (Vd)</span>
+        <span class="lval" id="vVd">40 L</span>
+      </label>
+      <input type="range" id="sVd" min="5" max="200" step="5" value="40">
+    </div>
+
+    <div class="section-hdr">Protein Binding &amp; Clearance</div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="% of drug bound to plasma proteins. Only free (unbound) drug is pharmacologically active.">Protein binding (%)</span>
+        <span class="lval" id="vPB">80%</span>
+      </label>
+      <input type="range" id="sPB" min="0" max="99" step="1" value="80">
+      <div class="hint">Free fraction = 1 − binding%</div>
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Hepatic clearance modifies ke. High clearance = faster elimination.">Hepatic clearance</span>
+        <span class="lval" id="vCL">medium</span>
+      </label>
+      <input type="range" id="sCL" min="1" max="5" step="1" value="3">
+      <div class="hint">1 = low · 3 = medium · 5 = high</div>
+    </div>
+
+    <div class="section-hdr">Therapeutic Window</div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Minimum effective concentration. Below this, no therapeutic effect.">MEC (mg/L)</span>
+        <span class="lval" id="vMEC">2.0</span>
+      </label>
+      <input type="range" id="sMEC" min="0.5" max="20" step="0.5" value="2">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="lname" data-tip="Toxicity threshold. Above this, adverse effects are likely.">Toxicity (mg/L)</span>
+        <span class="lval" id="vTOX">12.0</span>
+      </label>
+      <input type="range" id="sTOX" min="1" max="50" step="0.5" value="12">
+    </div>
+
+    <button id="exportBtn">Export PNG</button>
+
+  </div><!-- /panel -->
+
+  <!-- RIGHT WORKSPACE -->
+  <div id="workspace">
+
+    <!-- stats -->
+    <div id="stats">
+      <div class="stat">
+        <div class="sval" id="statCmax">—</div>
+        <div class="slabel">Cmax (mg/L)</div>
+      </div>
+      <div class="stat">
+        <div class="sval" id="statTmax">—</div>
+        <div class="slabel">Tmax (h)</div>
+      </div>
+      <div class="stat">
+        <div class="sval" id="statAUC">—</div>
+        <div class="slabel">AUC (mg·h/L)</div>
+      </div>
+      <div class="stat">
+        <div class="sval" id="statT12">—</div>
+        <div class="slabel">t½ (h)</div>
+      </div>
+      <div class="stat">
+        <div class="sval" id="statFree">—</div>
+        <div class="slabel">Free fraction</div>
+      </div>
+    </div>
+
+    <!-- charts area -->
+    <div id="charts">
+      <canvas id="mainChart"></canvas>
+      <canvas id="freeChart"></canvas>
+    </div>
+
+    <!-- legend -->
+    <div id="legend">
+      <div class="leg-item"><div class="leg-swatch" style="background:var(--curve1)"></div> Total concentration</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:var(--curve2)"></div> Free concentration</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:var(--tc-line);height:2px;border-top:2px dashed var(--tc-line);background:none"></div> MEC</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:none;border-top:2px dashed var(--tox-line)"></div> Toxicity</div>
+    </div>
+
+    <!-- ADME diagram -->
+    <div id="adme-area">
+      <h3>ADME — Schematic</h3>
+      <canvas id="admeCanvas" height="110"></canvas>
+    </div>
+
+  </div><!-- /workspace -->
+
+</div><!-- /app -->
+
+<div id="tooltip"></div>
+
+<script>
+/* =================================================================
+   STATE
+================================================================= */
+const P = {
+  dose:    500,
+  F:       0.8,
+  ka:      1.2,
+  ke:      0.15,
+  Vd:      40,
+  pb:      80,      // % protein binding
+  cl:      3,       // 1–5 clearance factor
+  formER:  false,
+  MEC:     2.0,
+  TOX:     12.0,
+};
+
+/* =================================================================
+   PK CALCULATIONS
+================================================================= */
+function effectiveKa() {
+  return P.formER ? P.ka / 5 : P.ka;
+}
+
+function effectiveKe() {
+  // CL factor 1–5 maps to ke multiplier 0.5 – 2.0
+  const clMult = 0.5 + (P.cl - 1) * (1.5 / 4);
+  return P.ke * clMult;
+}
+
+function freeFraction() {
+  return (100 - P.pb) / 100;
+}
+
+function concentration(t, ka, ke) {
+  if (Math.abs(ka - ke) < 1e-6) {
+    // avoid division by zero — nudge ka slightly
+    ka = ke + 1e-5;
+  }
+  const c = (P.F * P.dose * ka) / (P.Vd * (ka - ke))
+            * (Math.exp(-ke * t) - Math.exp(-ka * t));
+  return Math.max(0, c);
+}
+
+function computeCurve(tMax, steps) {
+  const ka = effectiveKa();
+  const ke = effectiveKe();
+  const dt = tMax / steps;
+  const times = [], concs = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i * dt;
+    times.push(t);
+    concs.push(concentration(t, ka, ke));
+  }
+  return { times, concs };
+}
+
+function pkStats(times, concs) {
+  let cmax = 0, tmax = 0, auc = 0;
+  for (let i = 0; i < concs.length; i++) {
+    if (concs[i] > cmax) { cmax = concs[i]; tmax = times[i]; }
+    if (i > 0) {
+      auc += (concs[i] + concs[i - 1]) / 2 * (times[i] - times[i - 1]);
+    }
+  }
+  const ke = effectiveKe();
+  const t12 = Math.log(2) / ke;
+  return { cmax, tmax, auc, t12 };
+}
+
+/* =================================================================
+   CHART UTILITIES
+================================================================= */
+const PAD = { top: 22, right: 18, bottom: 36, left: 56 };
+
+function resizeCanvas(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const dpr  = window.devicePixelRatio || 1;
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { w: rect.width, h: rect.height, ctx };
+}
+
+function drawGrid(ctx, w, h, xMax, yMax) {
+  ctx.strokeStyle = '#e4e4e0';
+  ctx.lineWidth   = 1;
+  const xTicks = 6, yTicks = 5;
+  ctx.beginPath();
+  for (let i = 0; i <= xTicks; i++) {
+    const x = PAD.left + (w - PAD.left - PAD.right) * i / xTicks;
+    ctx.moveTo(x, PAD.top); ctx.lineTo(x, h - PAD.bottom);
+  }
+  for (let i = 0; i <= yTicks; i++) {
+    const y = PAD.top + (h - PAD.top - PAD.bottom) * i / yTicks;
+    ctx.moveTo(PAD.left, y); ctx.lineTo(w - PAD.right, y);
+  }
+  ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#888';
+  ctx.font      = '10px system-ui';
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= xTicks; i++) {
+    const x = PAD.left + (w - PAD.left - PAD.right) * i / xTicks;
+    const val = (xMax * i / xTicks).toFixed(0);
+    ctx.fillText(val, x, h - PAD.bottom + 14);
+  }
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= yTicks; i++) {
+    const y = PAD.top + (h - PAD.top - PAD.bottom) * i / yTicks;
+    const val = (yMax * (1 - i / yTicks)).toFixed(1);
+    ctx.fillText(val, PAD.left - 6, y + 3.5);
+  }
+
+  // Axis titles
+  ctx.fillStyle = '#666';
+  ctx.font      = '11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('Time (h)', w / 2, h - 4);
+  ctx.save();
+  ctx.translate(12, h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('C (mg/L)', 0, 0);
+  ctx.restore();
+}
+
+function toCanvas(t, c, tMax, yMax, w, h) {
+  const cw = w - PAD.left - PAD.right;
+  const ch = h - PAD.top  - PAD.bottom;
+  return {
+    x: PAD.left + (t / tMax) * cw,
+    y: PAD.top  + (1 - c / yMax) * ch,
+  };
+}
+
+/* =================================================================
+   MAIN CHART RENDER
+================================================================= */
+function renderMain(times, concs, stats) {
+  const canvas = document.getElementById('mainChart');
+  const { w, h, ctx } = resizeCanvas(canvas);
+
+  const tMax = times[times.length - 1];
+  const ke   = effectiveKe();
+  const ff   = freeFraction();
+
+  // y scale: include toxicity line
+  const dataMax = Math.max(stats.cmax, P.TOX * 1.1);
+  const yMax    = dataMax * 1.15;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Clip to chart area
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(PAD.left, PAD.top, w - PAD.left - PAD.right, h - PAD.top - PAD.bottom);
+  ctx.clip();
+
+  // Therapeutic zone fill
+  const mecY  = toCanvas(0, P.MEC,  tMax, yMax, w, h).y;
+  const toxY  = toCanvas(0, P.TOX,  tMax, yMax, w, h).y;
+  const chartB = h - PAD.bottom;
+  ctx.fillStyle = 'rgba(60,160,60,0.07)';
+  ctx.fillRect(PAD.left, toxY, w - PAD.left - PAD.right, mecY - toxY);
+
+  // MEC line
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = var_color('--mic-line', '#c08820');
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(PAD.left, mecY);
+  ctx.lineTo(w - PAD.right, mecY);
+  ctx.stroke();
+
+  // TOX line
+  ctx.strokeStyle = var_color('--tox-line', '#c04830');
+  ctx.beginPath();
+  ctx.moveTo(PAD.left, toxY);
+  ctx.lineTo(w - PAD.right, toxY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // MEC / TOX labels
+  ctx.fillStyle = '#c08820'; ctx.font = '10px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('MEC', PAD.left + 3, mecY - 3);
+  ctx.fillStyle = '#c04830';
+  ctx.fillText('Toxicity', PAD.left + 3, toxY - 3);
+
+  // Total concentration curve
+  ctx.beginPath();
+  ctx.strokeStyle = var_color('--curve1', '#1a5faa');
+  ctx.lineWidth   = 2.2;
+  concs.forEach((c, i) => {
+    const p = toCanvas(times[i], c, tMax, yMax, w, h);
+    i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+  });
+  ctx.stroke();
+
+  // Free concentration curve (dashed)
+  ctx.beginPath();
+  ctx.setLineDash([6, 3]);
+  ctx.strokeStyle = var_color('--curve2', '#c04830');
+  ctx.lineWidth   = 1.6;
+  concs.forEach((c, i) => {
+    const p = toCanvas(times[i], c * ff, tMax, yMax, w, h);
+    i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Cmax marker
+  const cmaxPt = toCanvas(stats.tmax, stats.cmax, tMax, yMax, w, h);
+  ctx.beginPath();
+  ctx.arc(cmaxPt.x, cmaxPt.y, 4, 0, 2 * Math.PI);
+  ctx.fillStyle = var_color('--curve1', '#1a5faa');
+  ctx.fill();
+  ctx.fillStyle = '#1c1c1c';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Cmax ${stats.cmax.toFixed(1)}`, cmaxPt.x + 6, cmaxPt.y - 4);
+
+  ctx.restore();
+
+  drawGrid(ctx, w, h, tMax, yMax);
+
+  // Chart title
+  ctx.fillStyle = '#444';
+  ctx.font      = 'bold 11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('Plasma Concentration vs. Time', PAD.left, PAD.top - 6);
+}
+
+/* =================================================================
+   FREE DRUG CHART
+================================================================= */
+function renderFree(times, concs) {
+  const canvas = document.getElementById('freeChart');
+  const { w, h, ctx } = resizeCanvas(canvas);
+
+  const ff   = freeFraction();
+  const free = concs.map(c => c * ff);
+  const tMax = times[times.length - 1];
+  const yMax = Math.max(...free) * 1.2 || 1;
+
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(PAD.left, PAD.top, w - PAD.left - PAD.right, h - PAD.top - PAD.bottom);
+  ctx.clip();
+
+  // MEC line on free chart
+  const mecFree = P.MEC * ff; // optional: MEC on free basis
+  const mecY = toCanvas(0, P.MEC * ff, tMax, yMax, w, h).y;
+  if (mecY > PAD.top && mecY < h - PAD.bottom) {
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = '#c08820';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(PAD.left, mecY); ctx.lineTo(w - PAD.right, mecY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#c08820'; ctx.font = '10px system-ui'; ctx.textAlign = 'left';
+    ctx.fillText('MEC (free)', PAD.left + 3, mecY - 3);
+  }
+
+  // Curve
+  ctx.beginPath();
+  ctx.strokeStyle = var_color('--curve2', '#c04830');
+  ctx.lineWidth   = 2;
+  free.forEach((c, i) => {
+    const p = toCanvas(times[i], c, tMax, yMax, w, h);
+    i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+  });
+  ctx.stroke();
+
+  ctx.restore();
+  drawGrid(ctx, w, h, tMax, yMax);
+
+  ctx.fillStyle = '#444';
+  ctx.font      = 'bold 11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Free (unbound) Concentration  — free fraction: ${(ff * 100).toFixed(0)}%`, PAD.left, PAD.top - 6);
+}
+
+/* =================================================================
+   ADME DIAGRAM
+================================================================= */
+function renderADME() {
+  const canvas = document.getElementById('admeCanvas');
+  const rect   = canvas.getBoundingClientRect();
+  const dpr    = window.devicePixelRatio || 1;
+  canvas.width  = rect.width  * dpr;
+  canvas.height = 110 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = 110;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // --- node positions ---
+  // GI tract → Blood/Plasma → Liver → Kidney → Periphery
+  const nodes = {
+    gi:    { x: W * 0.08, y: 55, label: 'GI Tract',   sub: 'Absorption' },
+    blood: { x: W * 0.35, y: 55, label: 'Blood/Plasma', sub: 'Distribution' },
+    liver: { x: W * 0.60, y: 28, label: 'Liver',       sub: 'Metabolism' },
+    kidney:{ x: W * 0.60, y: 82, label: 'Kidney',      sub: 'Excretion' },
+    periph:{ x: W * 0.85, y: 55, label: 'Tissue',      sub: 'Periphery' },
+  };
+
+  const ka  = effectiveKa();
+  const ke  = effectiveKe();
+  const ff  = freeFraction();
+  const Vd  = P.Vd;
+
+  // Arrow thickness mapping
+  const absW  = lerp(0.8, 6, (P.F * ka)     / (1 * 5));       // F × ka
+  const distW = lerp(0.8, 6, Vd              / 200);           // Vd
+  const metW  = lerp(0.8, 6, P.cl            / 5);             // CL level
+  const excW  = lerp(0.8, 6, ke              / 1);             // ke
+  const freeW = lerp(0.8, 6, ff);                              // free fraction → periphery
+
+  // Draw arrows
+  drawArrow(ctx, nodes.gi,    nodes.blood, absW,  '#2a8a2a', `F=${P.F}`);
+  drawArrow(ctx, nodes.blood, nodes.liver,  metW,  '#888',    '');
+  drawArrow(ctx, nodes.blood, nodes.kidney, excW,  '#c04830', '');
+  drawArrow(ctx, nodes.blood, nodes.periph, freeW, '#1a5faa', '');
+
+  // Liver → exit arrow (short)
+  const lx2 = nodes.liver.x + 36, ly = nodes.liver.y;
+  arrowHead(ctx, lx2 - 12, ly, lx2, ly, metW, '#888');
+  ctx.fillStyle = '#888'; ctx.font = '9px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('metabolites', lx2 + 2, ly + 3);
+
+  // Kidney → exit
+  const kx2 = nodes.kidney.x + 36, ky = nodes.kidney.y;
+  arrowHead(ctx, kx2 - 12, ky, kx2, ky, excW, '#c04830');
+  ctx.fillStyle = '#c04830'; ctx.font = '9px system-ui';
+  ctx.fillText('urine', kx2 + 2, ky + 3);
+
+  // Draw nodes
+  Object.values(nodes).forEach(n => drawNode(ctx, n));
+}
+
+function lerp(a, b, t) { return a + Math.max(0, Math.min(1, t)) * (b - a); }
+
+function drawArrow(ctx, from, to, w, color, label) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const ux = dx / len, uy = dy / len;
+  // start/end offsets (node radius ~28)
+  const r = 28;
+  const sx = from.x + ux * r, sy = from.y + uy * r;
+  const ex = to.x   - ux * r, ey = to.y   - uy * r;
+
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = Math.max(0.8, w);
+  ctx.globalAlpha = 0.75;
+  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  arrowHead(ctx, ex - ux * 8, ey - uy * 8, ex, ey, w, color);
+
+  if (label) {
+    const mx = (sx + ex) / 2, my = (sy + ey) / 2;
+    ctx.fillStyle = color;
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, mx, my - 5);
+  }
+}
+
+function arrowHead(ctx, x1, y1, x2, y2, w, color) {
+  const size  = 5 + Math.max(0, w) * 0.6;
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  ctx.fillStyle   = color;
+  ctx.globalAlpha = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - size * Math.cos(angle - 0.4), y2 - size * Math.sin(angle - 0.4));
+  ctx.lineTo(x2 - size * Math.cos(angle + 0.4), y2 - size * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawNode(ctx, n) {
+  const r = 28;
+  ctx.beginPath();
+  ctx.ellipse(n.x, n.y, r, 18, 0, 0, 2 * Math.PI);
+  ctx.fillStyle   = '#f8f8f6';
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth   = 1;
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle  = '#222';
+  ctx.font       = 'bold 9px system-ui';
+  ctx.textAlign  = 'center';
+  ctx.fillText(n.label, n.x, n.y - 1);
+  ctx.fillStyle  = '#888';
+  ctx.font       = '8px system-ui';
+  ctx.fillText(n.sub,   n.x, n.y + 9);
+}
+
+/* =================================================================
+   STATS UPDATE
+================================================================= */
+function updateStats(stats) {
+  document.getElementById('statCmax').textContent = stats.cmax.toFixed(2);
+  document.getElementById('statTmax').textContent = stats.tmax.toFixed(2);
+  document.getElementById('statAUC' ).textContent = stats.auc.toFixed(1);
+  document.getElementById('statT12' ).textContent = stats.t12.toFixed(2);
+  document.getElementById('statFree').textContent = (freeFraction() * 100).toFixed(0) + '%';
+}
+
+/* =================================================================
+   MAIN RENDER LOOP
+================================================================= */
+function render() {
+  // Time axis: show at least 5 half-lives
+  const ke   = effectiveKe();
+  const t12  = Math.log(2) / ke;
+  const tMax = Math.max(24, t12 * 7);
+  const steps = 400;
+
+  const { times, concs } = computeCurve(tMax, steps);
+  const stats = pkStats(times, concs);
+
+  updateStats(stats);
+  renderMain(times, concs, stats);
+  renderFree(times, concs);
+  renderADME();
+}
+
+/* =================================================================
+   CONTROLS WIRING
+================================================================= */
+function wire(sliderId, labelId, param, fmt, extra) {
+  const slider = document.getElementById(sliderId);
+  const label  = document.getElementById(labelId);
+  slider.addEventListener('input', () => {
+    P[param] = parseFloat(slider.value);
+    label.textContent = fmt(P[param]);
+    if (extra) extra();
+    render();
+  });
+}
+
+const clLabels = ['', 'low', 'low-med', 'medium', 'med-high', 'high'];
+
+wire('sDose', 'vDose', 'dose', v => `${v} mg`);
+wire('sF',    'vF',    'F',    v => v.toFixed(2));
+wire('sKa',   'vKa',   'ka',   v => `${v.toFixed(2)} h⁻¹`);
+wire('sKe',   'vKe',   'ke',   v => `${v.toFixed(3)} h⁻¹`);
+wire('sVd',   'vVd',   'Vd',   v => `${v} L`);
+wire('sPB',   'vPB',   'pb',   v => `${v}%`);
+wire('sCL',   'vCL',   'cl',   v => clLabels[v]);
+wire('sMEC',  'vMEC',  'MEC',  v => v.toFixed(1));
+wire('sTOX',  'vTOX',  'TOX',  v => v.toFixed(1));
+
+document.getElementById('sForm').addEventListener('change', e => {
+  P.formER = e.target.value === 'er';
+  render();
+});
+
+/* =================================================================
+   EXPORT PNG
+================================================================= */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  // Composite: stats + mainChart + freeChart + adme
+  const exportW = 900, exportH = 720;
+  const off = document.createElement('canvas');
+  off.width = exportW; off.height = exportH;
+  const ctx = off.getContext('2d');
+
+  ctx.fillStyle = '#f4f4f1';
+  ctx.fillRect(0, 0, exportW, exportH);
+
+  // Title
+  ctx.fillStyle = '#1c1c1c';
+  ctx.font = 'bold 15px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('PK Simulator — One-Compartment Model', 16, 28);
+
+  ctx.font = '11px system-ui';
+  ctx.fillStyle = '#666';
+  const params = `D=${P.dose}mg  F=${P.F}  ka=${effectiveKa().toFixed(2)}  ke=${effectiveKe().toFixed(3)}  Vd=${P.Vd}L  PB=${P.pb}%`;
+  ctx.fillText(params, 16, 44);
+
+  // Charts
+  const main = document.getElementById('mainChart');
+  const free = document.getElementById('freeChart');
+  const adme = document.getElementById('admeCanvas');
+
+  ctx.drawImage(main, 0, 56, exportW, 310);
+  ctx.drawImage(free, 0, 376, exportW, 200);
+  ctx.drawImage(adme, 0, 586, exportW, 110);
+
+  const link = document.createElement('a');
+  link.download = 'pk-simulation.png';
+  link.href = off.toDataURL('image/png');
+  link.click();
+});
+
+/* =================================================================
+   TOOLTIP
+================================================================= */
+const tip = document.getElementById('tooltip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mouseenter', e => {
+    tip.textContent = el.dataset.tip;
+    tip.style.display = 'block';
+  });
+  el.addEventListener('mousemove', e => {
+    tip.style.left = (e.clientX + 12) + 'px';
+    tip.style.top  = (e.clientY - 28) + 'px';
+  });
+  el.addEventListener('mouseleave', () => {
+    tip.style.display = 'none';
+  });
+});
+
+/* =================================================================
+   CSS VAR HELPER (canvas can't read CSS vars directly)
+================================================================= */
+function var_color(name, fallback) { return fallback; }
+
+/* =================================================================
+   RESIZE OBSERVER
+================================================================= */
+const ro = new ResizeObserver(() => render());
+ro.observe(document.getElementById('charts'));
+ro.observe(document.getElementById('adme-area'));
+
+// Initial render
+render();
+</script>
+</body>
+</html>
