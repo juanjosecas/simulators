@@ -13,6 +13,7 @@ Each top-level folder contains a simulator or related resource.
 Current examples include:
 
 - `electrophoresis_sim`
+- `amino-acid-speciation`
 - `liquid_extraction_simulator`
 - `pk-simulator`
 - `tlc_simulator`

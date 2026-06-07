@@ -13,7 +13,7 @@
   --text: #1c1c1c;
   --muted: #666;
   --accent: #1a5faa;
-  --panel: 280px;
+  --panel: 300px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -78,7 +78,14 @@ body {
 .ctrl { margin-bottom: 8px; }
 .ctrl label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
 .ctrl .lname { font-weight: 500; color: var(--text); font-size: 12px; }
+.ctrl .lval { font-variant-numeric: tabular-nums; color: var(--accent); font-size: 12px; font-weight: 600; }
 .ctrl .hint { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.ctrl input[type=range] {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
 .ctrl select {
   width: 100%;
   padding: 4px 6px;
@@ -112,12 +119,14 @@ body {
 }
 .stat .slabel { font-size: 10px; color: var(--muted); text-transform: uppercase; }
 
-.pka-list {
+.pka-list,
+.species-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.pka-row {
+.pka-row,
+.species-row {
   display: flex;
   justify-content: space-between;
   padding: 6px 8px;
@@ -126,7 +135,10 @@ body {
   border-radius: 3px;
 }
 .pka-row span { color: var(--muted); }
-.pka-row strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+.pka-row strong,
+.species-row strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+.species-row span { display: flex; align-items: center; gap: 6px; color: var(--text); }
+.species-row i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
 .chart-wrap {
   flex: 1;

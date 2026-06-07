@@ -4,6 +4,7 @@ import { calculateIsoelectricPoint, calculateSpeciation, getSpeciesLabels } from
 const colors = ["#1a5faa", "#c04830", "#2a8a2a", "#8a56ac"];
 const padding = { top: 26, right: 24, bottom: 42, left: 54 };
 let selectedKey = "glycine";
+let selectedPh = 7.0;
 
 const root = document.getElementById("app");
 
@@ -23,6 +24,13 @@ root.innerHTML = `
     </div>
     <p class="section-hdr">pKa values</p>
     <div id="pkaList" class="pka-list"></div>
+    <p class="section-hdr">pH probe</p>
+    <div class="ctrl">
+      <label for="phSlider"><span class="lname">pH</span><span class="lval" id="phValue">7.0</span></label>
+      <input id="phSlider" type="range" min="0" max="14" step="0.1" value="7.0">
+      <p class="hint">Move to inspect species percentages at a selected pH.</p>
+    </div>
+    <div id="speciesReadout" class="species-list"></div>
   </aside>
   <main id="workspace">
     <section id="stats"></section>
@@ -42,6 +50,12 @@ select.addEventListener("change", () => {
   render();
 });
 
+const phSlider = document.getElementById("phSlider");
+phSlider.addEventListener("input", () => {
+  selectedPh = Number(phSlider.value);
+  render();
+});
+
 window.addEventListener("resize", render);
 render();
 
@@ -51,15 +65,19 @@ function render() {
   const labels = getSpeciesLabels(aminoAcid);
   const pI = calculateIsoelectricPoint(aminoAcid);
 
-  renderStats(aminoAcid, pI);
+  const selectedPoint = points[Math.round(selectedPh * 10)];
+
+  renderStats(aminoAcid, pI, selectedPoint);
   renderPkaList(aminoAcid);
-  drawChart(points, labels, aminoAcid, pI);
+  renderSpeciesReadout(labels, selectedPoint);
+  drawChart(points, labels, aminoAcid, pI, selectedPh);
 }
 
-function renderStats(aminoAcid, pI) {
+function renderStats(aminoAcid, pI, selectedPoint) {
   document.getElementById("stats").innerHTML = `
     <div class="stat"><div class="sval">${aminoAcid.name}</div><div class="slabel">Selected compound</div></div>
     <div class="stat"><div class="sval">${pI.toFixed(2)}</div><div class="slabel">Isoelectric point</div></div>
+    <div class="stat"><div class="sval">${selectedPoint.pH.toFixed(1)}</div><div class="slabel">Probe pH</div></div>
     <div class="stat"><div class="sval">${aminoAcid.pKaR === null ? "2" : "3"}</div><div class="slabel">Ionizable groups</div></div>
   `;
 }
@@ -76,7 +94,19 @@ function renderPkaList(aminoAcid) {
     .join("");
 }
 
-function drawChart(points, labels, aminoAcid, pI) {
+function renderSpeciesReadout(labels, selectedPoint) {
+  document.getElementById("phValue").textContent = selectedPoint.pH.toFixed(1);
+  document.getElementById("speciesReadout").innerHTML = labels
+    .map((label, index) => `
+      <div class="species-row">
+        <span><i style="background:${colors[index]}"></i>${label}</span>
+        <strong>${(selectedPoint.species[index] * 100).toFixed(1)}%</strong>
+      </div>
+    `)
+    .join("");
+}
+
+function drawChart(points, labels, aminoAcid, pI, probePh) {
   const canvas = document.getElementById("speciationChart");
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
@@ -97,6 +127,7 @@ function drawChart(points, labels, aminoAcid, pI) {
   drawGrid(ctx, plot);
   drawPkaMarkers(ctx, plot, aminoAcid);
   drawIsoelectricMarker(ctx, plot, pI);
+  drawProbeMarker(ctx, plot, probePh);
   drawSeries(ctx, plot, points, labels);
   drawAxes(ctx, plot);
   drawLegend(ctx, labels, plot);
@@ -155,6 +186,16 @@ function drawIsoelectricMarker(ctx, plot, pI) {
   ctx.setLineDash([]);
   ctx.fillStyle = "#c04830";
   ctx.fillText(`pI ${pI.toFixed(2)}`, x + 4, plot.y + plot.h - 8);
+}
+
+function drawProbeMarker(ctx, plot, probePh) {
+  const x = xForPh(probePh, plot);
+  ctx.strokeStyle = "rgba(28, 28, 28, 0.45)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, plot.y);
+  ctx.lineTo(x, plot.y + plot.h);
+  ctx.stroke();
 }
 
 function drawSeries(ctx, plot, points, labels) {
