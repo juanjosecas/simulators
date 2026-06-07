@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fischer Esterification Simulator</title>
+<style>
+:root {
+  --bg: #f4f4f1;
+  --surface: #ffffff;
+  --border: #d0d0cc;
+  --border2: #e8e8e4;
+  --text: #1c1c1c;
+  --muted: #666;
+  --accent: #1a5faa;
+  --danger: #b44935;
+  --panel: 320px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: var(--panel) 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+#topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+#topbar h1 { font-size: 15px; font-weight: 600; }
+#topbar .sub { font-size: 12px; color: var(--muted); }
+#topbar .spacer { flex: 1; }
+#topbar a { font-size: 12px; color: var(--accent); text-decoration: none; }
+
+#sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 18px;
+}
+
+#content { padding: 18px; }
+
+.control { margin-bottom: 14px; }
+label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+select, input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 7px 8px;
+  background: white;
+  color: var(--text);
+}
+
+button {
+  border: 0;
+  border-radius: 3px;
+  background: var(--accent);
+  color: white;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:hover { background: #174f8c; }
+
+.note {
+  color: var(--muted);
+  font-size: 12px;
+  border-left: 3px solid var(--border);
+  padding-left: 9px;
+  margin-top: 12px;
+}
+
+.warning {
+  display: none;
+  color: var(--danger);
+  background: #fff6f3;
+  border: 1px solid #efc7bd;
+  padding: 8px;
+  margin-bottom: 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+}
+
+.card h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.metric {
+  border: 1px solid var(--border2);
+  background: #fafafa;
+  padding: 9px;
+}
+
+.metric .label { color: var(--muted); font-size: 11px; }
+.metric .value { font-size: 16px; font-weight: 600; margin-top: 2px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { border: 1px solid var(--border2); padding: 7px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+th { background: #f1f1ed; font-weight: 600; }
+
+canvas {
+  width: 100%;
+  height: 260px;
+  border: 1px solid var(--border2);
+  background: #fbfbf8;
+}
+
+.full { grid-column: 1 / -1; }
+
+@media (max-width: 860px) {
+  #app { grid-template-columns: 1fr; }
+  #sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+  .grid { grid-template-columns: 1fr; }
+  .metric-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>Fischer Esterification Simulator</h1>
+    <span class="sub">Acid + Alcohol ⇌ Ester + Water</span>
+    <span class="spacer"></span>
+    <a href="../index.html">All simulators</a>
+  </div>
+
+  <aside id="sidebar">
+    <div class="control">
+      <label for="esterSelect">Ester system</label>
+      <select id="esterSelect"></select>
+    </div>
+
+    <div class="control">
+      <label for="acid0">Acid initial concentration (M)</label>
+      <input id="acid0" type="number" min="0" step="0.01" value="1.00">
+    </div>
+
+    <div class="control">
+      <label for="alcohol0">Alcohol initial concentration (M)</label>
+      <input id="alcohol0" type="number" min="0" step="0.01" value="1.00">
+    </div>
+
+    <div class="control">
+      <label for="ester0">Ester initial concentration (M)</label>
+      <input id="ester0" type="number" min="0" step="0.01" value="0.00">
+    </div>
+
+    <div class="control">
+      <label for="water0">Water initial concentration (M)</label>
+      <input id="water0" type="number" min="0" step="0.01" value="0.00">
+    </div>
+
+    <button id="calculateBtn">Calculate equilibrium</button>
+
+    <p class="note" id="systemInfo"></p>
+    <p class="note">Keq = ([Ester][Water]) / ([Acid][Alcohol]). The simulator solves the physical root for x without external math libraries.</p>
+  </aside>
+
+  <main id="content">
+    <div class="warning" id="warning"></div>
+
+    <div class="grid">
+      <section class="card full">
+        <h2>Equilibrium results</h2>
+        <div class="metric-grid">
+          <div class="metric"><div class="label">x</div><div class="value" id="xValue">—</div></div>
+          <div class="metric"><div class="label">Conversion</div><div class="value" id="conversionValue">—</div></div>
+          <div class="metric"><div class="label">Yield</div><div class="value" id="yieldValue">—</div></div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Species</th><th>Initial (M)</th><th>Final (M)</th></tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Final concentrations</h2>
+        <canvas id="barChart" width="720" height="320"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>Conversion vs initial water</h2>
+        <canvas id="waterChart" width="720" height="320"></canvas>
+      </section>
+
+      <section class="card full">
+        <h2>Conversion vs excess alcohol</h2>
+        <canvas id="alcoholChart" width="1020" height="320"></canvas>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { esters } from "./esters.js";
+
+const colors = ["#1a5faa", "#4c8f3a", "#c06f2f", "#7a5fb4"];
+const esterSelect = document.getElementById("esterSelect");
+const inputs = {
+  acid: document.getElementById("acid0"),
+  alcohol: document.getElementById("alcohol0"),
+  ester: document.getElementById("ester0"),
+  water: document.getElementById("water0")
+};
+
+const output = {
+  warning: document.getElementById("warning"),
+  systemInfo: document.getElementById("systemInfo"),
+  x: document.getElementById("xValue"),
+  conversion: document.getElementById("conversionValue"),
+  yield: document.getElementById("yieldValue"),
+  table: document.getElementById("resultsBody")
+};
+
+const barChart = document.getElementById("barChart");
+const waterChart = document.getElementById("waterChart");
+const alcoholChart = document.getElementById("alcoholChart");
+
+esters.forEach((ester, index) => {
+  const option = document.createElement("option");
+  option.value = index;
+  option.textContent = ester.name;
+  esterSelect.appendChild(option);
+});
+
+esterSelect.addEventListener("change", update);
+document.getElementById("calculateBtn").addEventListener("click", update);
+Object.values(inputs).forEach(input => input.addEventListener("input", update));
+
+function readState() {
+  return {
+    ester: esters[Number(esterSelect.value)],
+    A0: readConcentration(inputs.acid),
+    B0: readConcentration(inputs.alcohol),
+    E0: readConcentration(inputs.ester),
+    W0: readConcentration(inputs.water)
+  };
+}
+
+function readConcentration(input) {
+  const value = Number(input.value);
+  return Number.isFinite(value) && value >= 0 ? value : NaN;
+}
+
+function update() {
+  const state = readState();
+  output.systemInfo.textContent = `${state.ester.acid} + ${state.ester.alcohol}; Keq = ${state.ester.Keq.toFixed(2)}`;
+
+  if ([state.A0, state.B0, state.E0, state.W0].some(value => Number.isNaN(value))) {
+    showWarning("All concentrations must be non-negative numbers.");
+    return;
+  }
+
+  const result = solveEquilibrium(state);
+
+  if (!result.valid) {
+    showWarning(result.message);
+    return;
+  }
+
+  output.warning.style.display = "none";
+  renderResults(state, result);
+  drawBarChart(barChart, result.finals);
+  drawLineChart(waterChart, buildWaterSeries(state), "Initial water (M)", "Conversion (%)");
+  drawLineChart(alcoholChart, buildAlcoholSeries(state), "Alcohol equivalents", "Conversion (%)");
+}
+
+function solveEquilibrium({ A0, B0, E0, W0, ester }) {
+  const lower = Math.max(-E0, -W0);
+  const upper = Math.min(A0, B0);
+
+  if (upper < lower) {
+    return { valid: false, message: "No physical interval exists for the selected concentrations." };
+  }
+
+  const f = x => (E0 + x) * (W0 + x) - ester.Keq * (A0 - x) * (B0 - x);
+  let lo = lower;
+  let hi = upper;
+  let flo = f(lo);
+  let fhi = f(hi);
+
+  if (Math.abs(flo) < 1e-12) return buildResult(lo, A0, B0, E0, W0);
+  if (Math.abs(fhi) < 1e-12) return buildResult(hi, A0, B0, E0, W0);
+  if (flo * fhi > 0) {
+    return { valid: false, message: "Could not bracket a valid equilibrium root." };
+  }
+
+  for (let i = 0; i < 100; i += 1) {
+    const mid = (lo + hi) / 2;
+    const fmid = f(mid);
+
+    if (Math.abs(fmid) < 1e-12 || (hi - lo) < 1e-10) {
+      return buildResult(mid, A0, B0, E0, W0);
+    }
+
+    if (flo * fmid <= 0) {
+      hi = mid;
+      fhi = fmid;
+    } else {
+      lo = mid;
+      flo = fmid;
+    }
+  }
+
+  return buildResult((lo + hi) / 2, A0, B0, E0, W0);
+}
+
+function buildResult(x, A0, B0, E0, W0) {
+  const limiting = Math.min(A0, B0);
+  return {
+    valid: true,
+    x,
+    conversion: A0 > 0 ? (x / A0) * 100 : 0,
+    yield: limiting > 0 ? (x / limiting) * 100 : 0,
+    finals: [
+      { name: "Acid", initial: A0, final: clean(A0 - x) },
+      { name: "Alcohol", initial: B0, final: clean(B0 - x) },
+      { name: "Ester", initial: E0, final: clean(E0 + x) },
+      { name: "Water", initial: W0, final: clean(W0 + x) }
+    ]
+  };
+}
+
+function renderResults(state, result) {
+  output.x.textContent = formatM(result.x);
+  output.conversion.textContent = `${result.conversion.toFixed(1)}%`;
+  output.yield.textContent = `${result.yield.toFixed(1)}%`;
+  output.table.innerHTML = "";
+
+  const names = [state.ester.acid, state.ester.alcohol, state.ester.name, "Water"];
+  result.finals.forEach((species, index) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${names[index]}</td><td>${formatM(species.initial)}</td><td>${formatM(species.final)}</td>`;
+    output.table.appendChild(row);
+  });
+}
+
+function buildWaterSeries(state) {
+  const maxWater = Math.max(2, state.W0 * 2, state.A0 * 2);
+  const points = [];
+
+  for (let i = 0; i <= 30; i += 1) {
+    const W0 = (maxWater * i) / 30;
+    const result = solveEquilibrium({ ...state, W0 });
+    if (result.valid) points.push({ x: W0, y: result.conversion });
+  }
+
+  return points;
+}
+
+function buildAlcoholSeries(state) {
+  const acidBase = state.A0 > 0 ? state.A0 : 1;
+  const points = [];
+
+  for (let i = 0; i <= 36; i += 1) {
+    const equivalents = 1 + (9 * i) / 36;
+    const result = solveEquilibrium({ ...state, B0: acidBase * equivalents });
+    if (result.valid) points.push({ x: equivalents, y: result.conversion });
+  }
+
+  return points;
+}
+
+function drawBarChart(canvas, finals) {
+  const ctx = canvas.getContext("2d");
+  const plot = clearChart(ctx, canvas, "Final concentration (M)");
+  const max = Math.max(0.1, ...finals.map(item => item.final)) * 1.15;
+  const barWidth = plot.w / finals.length * 0.52;
+
+  drawYAxis(ctx, plot, max, "M");
+
+  finals.forEach((item, index) => {
+    const x = plot.x + (index + 0.5) * (plot.w / finals.length) - barWidth / 2;
+    const h = (item.final / max) * plot.h;
+    const y = plot.y + plot.h - h;
+
+    ctx.fillStyle = colors[index];
+    ctx.fillRect(x, y, barWidth, h);
+    ctx.fillStyle = "#1c1c1c";
+    ctx.textAlign = "center";
+    ctx.fillText(item.name, x + barWidth / 2, plot.y + plot.h + 20);
+    ctx.fillText(item.final.toFixed(3), x + barWidth / 2, y - 6);
+  });
+}
+
+function drawLineChart(canvas, points, xLabel, yLabel) {
+  const ctx = canvas.getContext("2d");
+  const plot = clearChart(ctx, canvas, yLabel);
+
+  if (points.length < 2) return;
+
+  const xMin = points[0].x;
+  const xMax = points[points.length - 1].x;
+  const yMin = Math.min(0, ...points.map(point => point.y));
+  const yMax = Math.max(100, ...points.map(point => point.y)) * 1.05;
+
+  drawYAxis(ctx, plot, yMax, "%", yMin);
+  drawXAxis(ctx, plot, xMin, xMax, xLabel);
+
+  ctx.strokeStyle = "#1a5faa";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  points.forEach((point, index) => {
+    const x = plot.x + ((point.x - xMin) / (xMax - xMin || 1)) * plot.w;
+    const y = plot.y + plot.h - ((point.y - yMin) / (yMax - yMin || 1)) * plot.h;
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.stroke();
+}
+
+function clearChart(ctx, canvas, title) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#fbfbf8";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+  ctx.fillStyle = "#1c1c1c";
+  ctx.fillText(title, 16, 18);
+
+  return { x: 52, y: 34, w: canvas.width - 78, h: canvas.height - 82 };
+}
+
+function drawYAxis(ctx, plot, max, suffix, min = 0) {
+  ctx.strokeStyle = "#deded8";
+  ctx.fillStyle = "#666";
+  ctx.textAlign = "right";
+
+  for (let i = 0; i <= 4; i += 1) {
+    const value = min + ((max - min) * i) / 4;
+    const y = plot.y + plot.h - (plot.h * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(plot.x, y);
+    ctx.lineTo(plot.x + plot.w, y);
+    ctx.stroke();
+    ctx.fillText(`${value.toFixed(1)}${suffix}`, plot.x - 6, y + 4);
+  }
+}
+
+function drawXAxis(ctx, plot, min, max, label) {
+  ctx.strokeStyle = "#1c1c1c";
+  ctx.fillStyle = "#666";
+  ctx.textAlign = "center";
+  ctx.beginPath();
+  ctx.moveTo(plot.x, plot.y + plot.h);
+  ctx.lineTo(plot.x + plot.w, plot.y + plot.h);
+  ctx.stroke();
+
+  for (let i = 0; i <= 4; i += 1) {
+    const value = min + ((max - min) * i) / 4;
+    const x = plot.x + (plot.w * i) / 4;
+    ctx.fillText(value.toFixed(1), x, plot.y + plot.h + 18);
+  }
+
+  ctx.fillStyle = "#1c1c1c";
+  ctx.fillText(label, plot.x + plot.w / 2, plot.y + plot.h + 38);
+}
+
+function showWarning(message) {
+  output.warning.textContent = message;
+  output.warning.style.display = "block";
+}
+
+function clean(value) {
+  return Math.abs(value) < 1e-10 ? 0 : value;
+}
+
+function formatM(value) {
+  return `${value.toFixed(4)} M`;
+}
+
+update();
+</script>
+</body>
+</html>
