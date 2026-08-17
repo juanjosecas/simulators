@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dose–Response Curve Simulator</title>
+<style>
+:root { --bg:#f4f4f1; --surface:#fff; --border:#d0d0cc; --border2:#e8e8e4; --text:#1c1c1c; --muted:#666; --accent:#1a5faa; --curve:#c04830; --grid:#e0e0dc; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); font-size:13px; line-height:1.5; }
+header { height:47px; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:baseline; gap:16px; }
+header h1 { font-size:15px; font-weight:600; } header span { color:var(--muted); font-size:12px; } header a { margin-left:auto; color:var(--accent); text-decoration:none; font-size:12px; }
+main { max-width:1200px; margin:0 auto; padding:16px; display:grid; grid-template-columns:370px 1fr; gap:14px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:14px; min-width:0; }
+h2 { font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); padding-bottom:6px; margin-bottom:10px; border-bottom:1px solid var(--border2); }
+.units { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+label { font-size:11px; color:var(--muted); } input { width:100%; padding:5px 6px; border:1px solid var(--border); border-radius:3px; background:#fafafa; color:var(--text); font:inherit; }
+table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; } th { text-align:left; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.04em; } th,td { padding:4px; border-bottom:1px solid var(--border2); } td input { padding:4px 5px; } .data-table th:last-child,.data-table td:last-child { width:30px; text-align:center; }
+button { padding:6px 10px; border:1px solid var(--border); border-radius:3px; background:#fafafa; color:var(--text); font:inherit; cursor:pointer; } button:hover { border-color:var(--accent); } .primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:500; } .remove { border:0; background:transparent; color:var(--muted); padding:2px 5px; font-size:16px; }
+.actions { display:flex; gap:7px; margin-top:10px; } #message { min-height:20px; color:#a23725; margin-top:7px; font-size:11px; }
+.results { display:grid; grid-template-rows:auto auto; gap:14px; min-width:0; } .metrics { display:grid; grid-template-columns:repeat(5,1fr); border:1px solid var(--border2); margin-bottom:12px; }
+.metric { padding:7px 9px; border-right:1px solid var(--border2); min-width:0; } .metric:last-child { border:0; } .metric strong { display:block; color:var(--accent); font-size:16px; overflow:hidden; text-overflow:ellipsis; } .metric span { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.05em; }
+canvas { display:block; width:100%; height:390px; border:1px solid var(--border2); } .legend { display:flex; gap:18px; color:var(--muted); font-size:11px; margin-top:7px; } .dot,.line { display:inline-block; width:18px; height:3px; margin-right:5px; vertical-align:middle; background:var(--accent); } .dot { width:7px; height:7px; border-radius:50%; } .line { background:var(--curve); }
+.transformed { overflow-x:auto; } .transformed th,.transformed td { white-space:nowrap; text-align:right; } .transformed th:first-child,.transformed td:first-child { text-align:left; }
+.formula { color:var(--muted); font-size:11px; margin-top:8px; }
+@media(max-width:800px) { main { grid-template-columns:1fr; } header span { display:none; } .metrics { grid-template-columns:repeat(2,1fr); } canvas { height:320px; } }
+</style>
+</head>
+<body>
+<header><h1>Dose–Response Curve</h1><span>Four-parameter logistic regression (4PL)</span><a href="../index.html">All simulators</a></header>
+<main>
+  <section class="card">
+    <h2>Experimental data</h2>
+    <div class="units">
+      <label>Dose / concentration unit<input id="doseUnit" value="µM" aria-label="Dose or concentration unit"></label>
+      <label>Response unit<input id="responseUnit" value="%" aria-label="Response unit"></label>
+    </div>
+    <table class="data-table"><thead><tr><th id="doseHeading">Dose (µM)</th><th id="responseHeading">Response (%)</th><th></th></tr></thead><tbody id="inputRows"></tbody></table>
+    <div class="actions"><button id="addRow">Add row</button><button id="example">Load example</button><button class="primary" id="fit">Fit curve</button></div>
+    <p id="message" role="status"></p>
+    <p class="formula">Model: Y = Bottom + (Top − Bottom) / (1 + 10<sup>((logEC50 − logDose) × Hill)</sup>)</p>
+  </section>
+  <div class="results">
+    <section class="card">
+      <h2>Regression result</h2>
+      <div class="metrics">
+        <div class="metric"><strong id="bottom">—</strong><span>Bottom</span></div><div class="metric"><strong id="top">—</strong><span>Top</span></div>
+        <div class="metric"><strong id="ec50">—</strong><span>EC50</span></div><div class="metric"><strong id="hill">—</strong><span>Hill slope</span></div><div class="metric"><strong id="r2">—</strong><span>R²</span></div>
+      </div>
+      <canvas id="chart" aria-label="Dose-response regression chart"></canvas>
+      <div class="legend"><span><i class="dot"></i>Observed</span><span><i class="line"></i>4PL regression</span></div>
+    </section>
+    <section class="card transformed"><h2>Transformed data</h2>
+      <table><thead><tr><th>Dose</th><th>Response</th><th>log10(Dose)</th><th>Normalized</th><th>Logit</th><th>Predicted</th><th>Residual</th></tr></thead><tbody id="transformedRows"><tr><td colspan="7">Fit the curve to calculate transformations.</td></tr></tbody></table>
+    </section>
+  </div>
+</main>
+<script>
+const inputRows=document.getElementById('inputRows');
+const example=[[0.01,3],[0.03,5],[0.1,12],[0.3,31],[1,61],[3,82],[10,94],[30,97]];
+let latest=null;
+function addRow(dose='',response='') { const tr=document.createElement('tr'); tr.innerHTML=`<td><input type="number" min="0" step="any" value="${dose}" aria-label="Dose"></td><td><input type="number" step="any" value="${response}" aria-label="Response"></td><td><button class="remove" title="Remove row" aria-label="Remove row">×</button></td>`; tr.querySelector('button').onclick=()=>tr.remove(); inputRows.appendChild(tr); }
+function loadExample(){ inputRows.innerHTML=''; example.forEach(r=>addRow(...r)); fitCurve(); }
+function model(x,p){ return p[0]+(p[1]-p[0])/(1+Math.pow(10,(p[2]-x)*p[3])); }
+function loss(p,data){ if(!p.every(Number.isFinite)||Math.abs(p[3])<1e-4||Math.abs(p[3])>20) return Infinity; return data.reduce((s,d)=>s+(d.y-model(d.x,p))**2,0); }
+function nelderMead(start,data){
+  const n=start.length, steps=[Math.max(Math.abs(start[0])*.15,1),Math.max(Math.abs(start[1])*.15,1),.3,.35];
+  let simplex=[start.slice(),...start.map((_,i)=>start.map((v,j)=>v+(i===j?steps[j]:0)))];
+  for(let iter=0;iter<1800;iter++){
+    simplex.sort((a,b)=>loss(a,data)-loss(b,data));
+    const centroid=start.map((_,j)=>simplex.slice(0,n).reduce((s,p)=>s+p[j],0)/n), worst=simplex[n];
+    const reflected=centroid.map((v,j)=>v+(v-worst[j])), lr=loss(reflected,data);
+    if(lr<loss(simplex[0],data)){ const expanded=centroid.map((v,j)=>v+2*(reflected[j]-v)); simplex[n]=loss(expanded,data)<lr?expanded:reflected; }
+    else if(lr<loss(simplex[n-1],data)) simplex[n]=reflected;
+    else { const contracted=centroid.map((v,j)=>v+.5*(worst[j]-v)); if(loss(contracted,data)<loss(worst,data)) simplex[n]=contracted; else for(let i=1;i<=n;i++) simplex[i]=simplex[0].map((v,j)=>v+.5*(simplex[i][j]-v)); }
+    if(Math.max(...simplex.map(p=>Math.abs(loss(p,data)-loss(simplex[0],data))))<1e-12) break;
+  }
+  simplex.sort((a,b)=>loss(a,data)-loss(b,data)); return simplex[0];
+}
+function fmt(v,d=4){ return Number.isFinite(v)?Number(v.toPrecision(d)).toString():'—'; }
+function getData(){ return [...inputRows.rows].map(r=>({dose:Number(r.cells[0].querySelector('input').value),y:Number(r.cells[1].querySelector('input').value)})).filter(d=>Number.isFinite(d.dose)&&d.dose>0&&Number.isFinite(d.y)).map(d=>({...d,x:Math.log10(d.dose)})).sort((a,b)=>a.x-b.x); }
+function fitCurve(){
+  const data=getData(), message=document.getElementById('message'); message.textContent='';
+  if(data.length<5||new Set(data.map(d=>d.dose)).size<4){ message.textContent='Enter at least five valid observations at four different positive doses.'; return; }
+  const ys=data.map(d=>d.y), min=Math.min(...ys), max=Math.max(...ys), mid=(min+max)/2;
+  const closest=data.reduce((a,b)=>Math.abs(b.y-mid)<Math.abs(a.y-mid)?b:a), increasing=data[data.length-1].y>=data[0].y;
+  const starts=[[min,max,closest.x,increasing?1:-1],[max,min,closest.x,increasing?-1:1]];
+  const p=starts.map(s=>nelderMead(s,data)).sort((a,b)=>loss(a,data)-loss(b,data))[0];
+  if(p[0]>p[1]) { [p[0],p[1]]=[p[1],p[0]]; p[3]*=-1; }
+  const mean=ys.reduce((a,b)=>a+b,0)/ys.length, ssTot=ys.reduce((s,y)=>s+(y-mean)**2,0), r2=ssTot?1-loss(p,data)/ssTot:NaN;
+  latest={data,p,r2}; document.getElementById('bottom').textContent=fmt(p[0]); document.getElementById('top').textContent=fmt(p[1]);
+  document.getElementById('ec50').textContent=`${fmt(10**p[2])} ${document.getElementById('doseUnit').value}`; document.getElementById('hill').textContent=fmt(p[3]); document.getElementById('r2').textContent=fmt(r2);
+  renderTable(); drawChart();
+}
+function renderTable(){ const {data,p}=latest, body=document.getElementById('transformedRows'), range=p[1]-p[0]; body.innerHTML=''; data.forEach(d=>{ const pred=model(d.x,p), norm=(d.y-p[0])/range, logit=norm>0&&norm<1?Math.log10(norm/(1-norm)):NaN; const tr=document.createElement('tr'); [fmt(d.dose,6),fmt(d.y,6),fmt(d.x,5),fmt(norm,5),fmt(logit,5),fmt(pred,6),fmt(d.y-pred,5)].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}); body.appendChild(tr); }); }
+function drawChart(){
+  const canvas=document.getElementById('chart'), rect=canvas.getBoundingClientRect(), ratio=window.devicePixelRatio||1; canvas.width=rect.width*ratio; canvas.height=rect.height*ratio; const ctx=canvas.getContext('2d'); ctx.scale(ratio,ratio);
+  const w=rect.width,h=rect.height,m={l:58,r:18,t:20,b:46}, {data,p}=latest, xmin=data[0].x,xmax=data[data.length-1].x, curve=Array.from({length:201},(_,i)=>{const x=xmin+(xmax-xmin)*i/200;return{x,y:model(x,p)}}), allY=[...data.map(d=>d.y),...curve.map(d=>d.y)], rawMin=Math.min(...allY),rawMax=Math.max(...allY),pad=(rawMax-rawMin||1)*.08,ymin=rawMin-pad,ymax=rawMax+pad;
+  const X=x=>m.l+(x-xmin)/(xmax-xmin)*(w-m.l-m.r),Y=y=>m.t+(ymax-y)/(ymax-ymin)*(h-m.t-m.b); ctx.font='11px sans-serif';ctx.fillStyle='#666';ctx.strokeStyle='#e0e0dc';ctx.lineWidth=1;
+  ctx.textAlign='right'; for(let i=0;i<=5;i++){const y=ymin+(ymax-ymin)*i/5,py=Y(y);ctx.beginPath();ctx.moveTo(m.l,py);ctx.lineTo(w-m.r,py);ctx.stroke();ctx.fillText(fmt(y,3),m.l-8,py+4)}
+  for(let i=0;i<=5;i++){const x=xmin+(xmax-xmin)*i/5,px=X(x);ctx.beginPath();ctx.moveTo(px,m.t);ctx.lineTo(px,h-m.b);ctx.stroke();ctx.textAlign='center';ctx.fillText(fmt(x,3),px,h-m.b+17)} ctx.textAlign='center';ctx.fillText(`log10 Dose (${document.getElementById('doseUnit').value})`,(m.l+w-m.r)/2,h-7); ctx.save();ctx.translate(13,(m.t+h-m.b)/2);ctx.rotate(-Math.PI/2);ctx.fillText(`Response (${document.getElementById('responseUnit').value})`,0,0);ctx.restore();
+  ctx.strokeStyle='#c04830';ctx.lineWidth=2;ctx.beginPath();curve.forEach((d,i)=>(i?ctx.lineTo(X(d.x),Y(d.y)):ctx.moveTo(X(d.x),Y(d.y))));ctx.stroke();ctx.fillStyle='#1a5faa';data.forEach(d=>{ctx.beginPath();ctx.arc(X(d.x),Y(d.y),4,0,Math.PI*2);ctx.fill()});
+}
+document.getElementById('addRow').onclick=()=>addRow(); document.getElementById('example').onclick=loadExample; document.getElementById('fit').onclick=fitCurve;
+['doseUnit','responseUnit'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{document.getElementById('doseHeading').textContent=`Dose (${document.getElementById('doseUnit').value})`;document.getElementById('responseHeading').textContent=`Response (${document.getElementById('responseUnit').value})`;if(latest){document.getElementById('ec50').textContent=`${fmt(10**latest.p[2])} ${document.getElementById('doseUnit').value}`;drawChart()}}));
+window.addEventListener('resize',()=>latest&&drawChart()); loadExample();
+</script>
+</body>
+</html>
