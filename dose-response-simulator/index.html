@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dose-Response Simulator — 4PL Curve Fitting</title>
+<style>
+:root {
+  --bg: #f4f4f1;
+  --surface: #ffffff;
+  --border: #d0d0cc;
+  --border2: #e8e8e4;
+  --text: #1c1c1c;
+  --muted: #666;
+  --accent: #1a5faa;
+  --danger: #b44935;
+  --curve: #1a5faa;
+  --point: #c04830;
+  --grid: #e1e1dd;
+  --panel: 360px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: var(--panel) 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+#topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+#topbar h1 { font-size: 15px; font-weight: 600; }
+#topbar .sub { font-size: 12px; color: var(--muted); }
+#topbar .spacer { flex: 1; }
+#topbar a { font-size: 12px; color: var(--accent); text-decoration: none; }
+#topbar a:hover { text-decoration: underline; }
+
+#panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 14px 14px 20px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+#workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.section-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 12px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border2);
+}
+.section-hdr:first-child { margin-top: 0; }
+
+.control { margin-bottom: 9px; }
+label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+
+input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 7px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+}
+button:hover { background: #174f8c; }
+button.secondary {
+  background: #f1f1ed;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+button.secondary:hover { background: #e9e9e3; }
+button.remove {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: #fff6f3;
+  border: 1px solid #efc7bd;
+  color: var(--danger);
+  line-height: 1;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 12px;
+  border-left: 3px solid var(--border);
+  padding-left: 9px;
+  margin-top: 12px;
+}
+
+.warning {
+  display: none;
+  color: var(--danger);
+  background: #fff6f3;
+  border: 1px solid #efc7bd;
+  padding: 8px;
+  margin-bottom: 12px;
+}
+
+#stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat {
+  padding: 8px 12px;
+  border-right: 1px solid var(--border2);
+  min-width: 0;
+}
+.stat:last-child { border-right: 0; }
+.stat .sval {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stat .slabel {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#content {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.2fr) minmax(320px, 1fr);
+  gap: 14px;
+  padding: 14px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  min-width: 0;
+}
+.card h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.full { grid-column: 1 / -1; }
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+th, td {
+  border: 1px solid var(--border2);
+  padding: 6px;
+  text-align: right;
+  white-space: nowrap;
+}
+th:first-child, td:first-child { text-align: left; }
+th {
+  background: #f1f1ed;
+  font-weight: 600;
+}
+
+#dataTable input {
+  min-width: 0;
+  padding: 5px 6px;
+  text-align: right;
+}
+#dataTable {
+  table-layout: fixed;
+  min-width: 0;
+}
+#dataTable th,
+#dataTable td {
+  padding: 5px 4px;
+}
+#dataTable th:last-child,
+#dataTable td:last-child {
+  text-align: center;
+}
+
+.legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 8px;
+}
+.leg-item { display: flex; align-items: center; gap: 5px; }
+.leg-swatch {
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--curve);
+}
+.leg-swatch.point {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--point);
+}
+
+canvas {
+  width: 100%;
+  height: 430px;
+  border: 1px solid var(--border2);
+  background: #fbfbf8;
+  display: block;
+}
+
+@media (max-width: 980px) {
+  #app { grid-template-columns: 1fr; }
+  #panel { border-right: 0; border-bottom: 1px solid var(--border); }
+  #content { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  #app,
+  #panel,
+  #workspace,
+  #content {
+    width: 100%;
+    max-width: 100vw;
+  }
+  #panel {
+    overflow-x: hidden;
+  }
+  #topbar { flex-wrap: wrap; gap: 4px 12px; }
+  #topbar .sub { flex-basis: 100%; }
+  #topbar .spacer { display: none; }
+  #stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .button-row { grid-template-columns: 1fr; }
+  canvas { height: 340px; }
+  #dataTable,
+  #dataTable thead,
+  #dataTable tbody {
+    display: block;
+  }
+  #dataTable colgroup {
+    display: none;
+  }
+  #dataTable tbody tr {
+    display: block;
+  }
+  #dataTable thead {
+    display: none;
+  }
+  #dataTable th,
+  #dataTable td {
+    display: block;
+    width: auto;
+    border: 0;
+    padding: 3px 0;
+  }
+  #dataTable tbody tr {
+    background: #fafafa;
+    border-top: 1px solid var(--border2);
+    border-left: 1px solid var(--border2);
+    border-right: 1px solid var(--border2);
+    padding: 6px;
+  }
+  #dataTable tbody tr:last-child {
+    border-bottom: 1px solid var(--border2);
+  }
+  #dataTable td[data-label] {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 220px);
+    gap: 6px;
+    align-items: center;
+  }
+  #dataTable input {
+    width: min(220px, calc(100vw - 132px));
+    max-width: 220px;
+  }
+  #dataTable td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: left;
+  }
+  #dataTable td:last-child {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 78px;
+  }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>Dose-Response Simulator</h1>
+    <span class="sub">Four-parameter logistic fit with transformed diagnostics</span>
+    <span class="spacer"></span>
+    <a href="../index.html">All simulators</a>
+  </div>
+
+  <aside id="panel">
+    <div class="section-hdr">Units</div>
+    <div class="control">
+      <label for="doseUnit">Dose unit</label>
+      <input id="doseUnit" type="text" value="nM">
+    </div>
+    <div class="control">
+      <label for="responseUnit">Response unit</label>
+      <input id="responseUnit" type="text" value="%">
+    </div>
+
+    <div class="section-hdr">Dose / Response pairs</div>
+    <div class="warning" id="warning"></div>
+    <div class="table-wrap">
+      <table id="dataTable">
+        <colgroup>
+          <col style="width: 44%;">
+          <col style="width: 44%;">
+          <col style="width: 12%;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Dose</th>
+            <th>Response</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+    <div class="button-row">
+      <button id="addRowBtn" type="button">Add row</button>
+      <button id="exampleBtn" type="button" class="secondary">Example</button>
+      <button id="clearBtn" type="button" class="secondary">Clear</button>
+    </div>
+    <p class="note">Doses must be positive for the log10 transform. The 4PL model is fit as Bottom + (Top - Bottom) / (1 + (EC50 / dose)<sup>Hill</sup>).</p>
+  </aside>
+
+  <main id="workspace">
+    <div id="stats">
+      <div class="stat"><div class="sval" id="bottomValue">-</div><div class="slabel">Bottom</div></div>
+      <div class="stat"><div class="sval" id="topValue">-</div><div class="slabel">Top</div></div>
+      <div class="stat"><div class="sval" id="ec50Value">-</div><div class="slabel">EC50</div></div>
+      <div class="stat"><div class="sval" id="hillValue">-</div><div class="slabel">Hill</div></div>
+      <div class="stat"><div class="sval" id="r2Value">-</div><div class="slabel">R²</div></div>
+    </div>
+
+    <div id="content">
+      <section class="card">
+        <h2>Observed data and fitted 4PL curve</h2>
+        <canvas id="chart" width="900" height="520"></canvas>
+        <div class="legend">
+          <span class="leg-item"><i class="leg-swatch point"></i>Observed</span>
+          <span class="leg-item"><i class="leg-swatch"></i>Fitted 4PL</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Transformed data</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dose</th>
+                <th>Response</th>
+                <th>log10 dose</th>
+                <th>Normalized</th>
+                <th>Logit</th>
+                <th>Predicted</th>
+                <th>Residual</th>
+              </tr>
+            </thead>
+            <tbody id="transformedBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+const exampleRows = [
+  { dose: 0.03, response: 4.5 },
+  { dose: 0.1, response: 6.9 },
+  { dose: 0.3, response: 13.2 },
+  { dose: 1, response: 25.4 },
+  { dose: 3, response: 51.8 },
+  { dose: 10, response: 76.6 },
+  { dose: 30, response: 91.1 },
+  { dose: 100, response: 96.4 }
+];
+
+let rows = exampleRows.map((row) => ({ ...row }));
+let currentFit = null;
+
+const dataBody = document.getElementById("dataBody");
+const transformedBody = document.getElementById("transformedBody");
+const warning = document.getElementById("warning");
+const chart = document.getElementById("chart");
+const ctx = chart.getContext("2d");
+
+function fmt(value, digits = 4) {
+  if (!Number.isFinite(value)) return "-";
+  const abs = Math.abs(value);
+  if ((abs >= 10000 || abs < 0.001) && abs !== 0) return value.toExponential(3);
+  return Number(value.toPrecision(digits)).toString();
+}
+
+function parseRows() {
+  return rows
+    .map((row) => ({ dose: Number(row.dose), response: Number(row.response) }))
+    .filter((row) => Number.isFinite(row.dose) && Number.isFinite(row.response));
+}
+
+function fourPL(dose, params) {
+  const [bottom, top, logEC50, hill] = params;
+  const logDose = Math.log10(dose);
+  const exponent = Math.max(-80, Math.min(80, hill * (logEC50 - logDose)));
+  return bottom + (top - bottom) / (1 + Math.pow(10, exponent));
+}
+
+function sseFor(data, params) {
+  const [bottom, top, logEC50, hill] = params;
+  if (!params.every(Number.isFinite) || Math.abs(top - bottom) < 1e-9 || Math.abs(hill) > 20) return 1e100;
+  const minLog = Math.min(...data.map((row) => Math.log10(row.dose))) - 3;
+  const maxLog = Math.max(...data.map((row) => Math.log10(row.dose))) + 3;
+  if (logEC50 < minLog || logEC50 > maxLog) return 1e100;
+  return data.reduce((sum, row) => {
+    const resid = row.response - fourPL(row.dose, params);
+    return sum + resid * resid;
+  }, 0);
+}
+
+function nelderMead(objective, start, steps, maxIter = 900) {
+  const n = start.length;
+  let simplex = [start.slice()];
+  for (let i = 0; i < n; i++) {
+    const point = start.slice();
+    point[i] += steps[i];
+    simplex.push(point);
+  }
+  let values = simplex.map(objective);
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const order = simplex.map((point, i) => ({ point, value: values[i] })).sort((a, b) => a.value - b.value);
+    simplex = order.map((item) => item.point);
+    values = order.map((item) => item.value);
+
+    const spread = Math.max(...values) - Math.min(...values);
+    const size = simplex.slice(1).reduce((maxSize, point) => {
+      const dist = Math.sqrt(point.reduce((sum, coord, i) => sum + (coord - simplex[0][i]) ** 2, 0));
+      return Math.max(maxSize, dist);
+    }, 0);
+    if (spread < 1e-10 && size < 1e-8) break;
+
+    const centroid = Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) centroid[j] += simplex[i][j] / n;
+    }
+
+    const worst = simplex[n];
+    const reflected = centroid.map((c, i) => c + (c - worst[i]));
+    const reflectedValue = objective(reflected);
+
+    if (reflectedValue < values[0]) {
+      const expanded = centroid.map((c, i) => c + 2 * (reflected[i] - c));
+      const expandedValue = objective(expanded);
+      simplex[n] = expandedValue < reflectedValue ? expanded : reflected;
+      values[n] = Math.min(expandedValue, reflectedValue);
+    } else if (reflectedValue < values[n - 1]) {
+      simplex[n] = reflected;
+      values[n] = reflectedValue;
+    } else {
+      const contracted = centroid.map((c, i) => c + 0.5 * (worst[i] - c));
+      const contractedValue = objective(contracted);
+      if (contractedValue < values[n]) {
+        simplex[n] = contracted;
+        values[n] = contractedValue;
+      } else {
+        for (let i = 1; i <= n; i++) {
+          simplex[i] = simplex[0].map((bestCoord, j) => bestCoord + 0.5 * (simplex[i][j] - bestCoord));
+          values[i] = objective(simplex[i]);
+        }
+      }
+    }
+  }
+
+  const best = simplex.map((point, i) => ({ point, value: values[i] })).sort((a, b) => a.value - b.value)[0];
+  return { params: best.point, sse: best.value };
+}
+
+function initialGuesses(data) {
+  const sorted = data.slice().sort((a, b) => a.dose - b.dose);
+  const responses = sorted.map((row) => row.response);
+  const doses = sorted.map((row) => row.dose);
+  const minY = Math.min(...responses);
+  const maxY = Math.max(...responses);
+  const range = Math.max(maxY - minY, 1);
+  const mid = (minY + maxY) / 2;
+  const ecRow = sorted.reduce((best, row) => Math.abs(row.response - mid) < Math.abs(best.response - mid) ? row : best, sorted[0]);
+  const logEC50 = Math.log10(ecRow.dose);
+  const increasing = sorted[sorted.length - 1].response >= sorted[0].response;
+  const pad = range * 0.06;
+  const low = minY - pad;
+  const high = maxY + pad;
+  const hillSign = increasing ? 1 : -1;
+
+  return [
+    [low, high, logEC50, hillSign],
+    [minY, maxY, logEC50, hillSign * 0.7],
+    [low, high, Math.log10(Math.sqrt(doses[0] * doses[doses.length - 1])), hillSign * 1.3],
+    [high, low, logEC50, -hillSign],
+    [minY - range * 0.15, maxY + range * 0.15, logEC50, hillSign * 2]
+  ];
+}
+
+function fit4PL(data) {
+  const valid = data.filter((row) => row.dose > 0).sort((a, b) => a.dose - b.dose);
+  if (valid.length < 5) return null;
+  const yRange = Math.max(...valid.map((row) => row.response)) - Math.min(...valid.map((row) => row.response));
+  const logRange = Math.max(...valid.map((row) => Math.log10(row.dose))) - Math.min(...valid.map((row) => Math.log10(row.dose)));
+  const steps = [
+    Math.max(yRange * 0.12, 0.5),
+    Math.max(yRange * 0.12, 0.5),
+    Math.max(logRange * 0.12, 0.15),
+    0.35
+  ];
+
+  let best = null;
+  for (const guess of initialGuesses(valid)) {
+    const result = nelderMead((params) => sseFor(valid, params), guess, steps);
+    if (!best || result.sse < best.sse) best = result;
+  }
+
+  const mean = valid.reduce((sum, row) => sum + row.response, 0) / valid.length;
+  const sst = valid.reduce((sum, row) => sum + (row.response - mean) ** 2, 0);
+  const r2 = sst > 0 ? 1 - best.sse / sst : NaN;
+  return { params: best.params, sse: best.sse, r2, data: valid };
+}
+
+function transformedRows(data, fit) {
+  if (!fit) return [];
+  const [bottom, top] = fit.params;
+  const span = top - bottom;
+  return data.map((row) => {
+    const predicted = fourPL(row.dose, fit.params);
+    const normalized = (row.response - bottom) / span;
+    const clipped = Math.max(1e-6, Math.min(1 - 1e-6, normalized));
+    return {
+      ...row,
+      logDose: Math.log10(row.dose),
+      normalized,
+      logit: Math.log(clipped / (1 - clipped)),
+      predicted,
+      residual: row.response - predicted
+    };
+  });
+}
+
+function renderDataTable() {
+  dataBody.innerHTML = "";
+  rows.forEach((row, index) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="Dose"><input type="number" min="0" step="any" value="${row.dose}" data-field="dose" data-index="${index}"></td>
+      <td data-label="Response"><input type="number" step="any" value="${row.response}" data-field="response" data-index="${index}"></td>
+      <td><button type="button" class="remove" data-index="${index}" title="Remove row">×</button></td>
+    `;
+    dataBody.appendChild(tr);
+  });
+}
+
+function renderStats(fit) {
+  const doseUnit = document.getElementById("doseUnit").value.trim();
+  const responseUnit = document.getElementById("responseUnit").value.trim();
+  const set = (id, text) => { document.getElementById(id).textContent = text; };
+  if (!fit) {
+    ["bottomValue", "topValue", "ec50Value", "hillValue", "r2Value"].forEach((id) => set(id, "-"));
+    return;
+  }
+  const [bottom, top, logEC50, hill] = fit.params;
+  set("bottomValue", `${fmt(bottom)}${responseUnit ? " " + responseUnit : ""}`);
+  set("topValue", `${fmt(top)}${responseUnit ? " " + responseUnit : ""}`);
+  set("ec50Value", `${fmt(Math.pow(10, logEC50))}${doseUnit ? " " + doseUnit : ""}`);
+  set("hillValue", fmt(hill));
+  set("r2Value", fmt(fit.r2, 5));
+}
+
+function renderTransformed(data, fit) {
+  transformedBody.innerHTML = "";
+  const doseUnit = document.getElementById("doseUnit").value.trim();
+  const responseUnit = document.getElementById("responseUnit").value.trim();
+  for (const row of transformedRows(data, fit)) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${fmt(row.dose)}${doseUnit ? " " + doseUnit : ""}</td>
+      <td>${fmt(row.response)}${responseUnit ? " " + responseUnit : ""}</td>
+      <td>${fmt(row.logDose)}</td>
+      <td>${fmt(row.normalized)}</td>
+      <td>${fmt(row.logit)}</td>
+      <td>${fmt(row.predicted)}${responseUnit ? " " + responseUnit : ""}</td>
+      <td>${fmt(row.residual)}${responseUnit ? " " + responseUnit : ""}</td>
+    `;
+    transformedBody.appendChild(tr);
+  }
+}
+
+function drawChart(data, fit) {
+  const rect = chart.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  chart.width = Math.max(1, Math.floor(rect.width * dpr));
+  chart.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const w = rect.width;
+  const h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = { left: 58, right: 18, top: 20, bottom: 46 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+
+  ctx.fillStyle = "#fbfbf8";
+  ctx.fillRect(0, 0, w, h);
+
+  if (!fit || data.length === 0) {
+    ctx.fillStyle = "#666";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "13px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+    ctx.fillText("Enter at least five positive-dose rows to fit a 4PL curve.", w / 2, h / 2);
+    return;
+  }
+
+  const logs = data.map((row) => Math.log10(row.dose));
+  let minX = Math.min(...logs);
+  let maxX = Math.max(...logs);
+  if (minX === maxX) { minX -= 1; maxX += 1; }
+  const xPad = (maxX - minX) * 0.08;
+  minX -= xPad;
+  maxX += xPad;
+
+  const ys = data.map((row) => row.response);
+  for (let i = 0; i <= 240; i++) {
+    const lx = minX + (maxX - minX) * i / 240;
+    ys.push(fourPL(Math.pow(10, lx), fit.params));
+  }
+  let minY = Math.min(...ys);
+  let maxY = Math.max(...ys);
+  if (minY === maxY) { minY -= 1; maxY += 1; }
+  const yPad = (maxY - minY) * 0.12;
+  minY -= yPad;
+  maxY += yPad;
+
+  const xScale = (logDose) => pad.left + (logDose - minX) / (maxX - minX) * plotW;
+  const yScale = (value) => pad.top + (maxY - value) / (maxY - minY) * plotH;
+
+  ctx.strokeStyle = "#1c1c1c";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--grid").trim();
+  ctx.fillStyle = "#666";
+  ctx.font = "11px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= 5; i++) {
+    const value = minY + (maxY - minY) * i / 5;
+    const y = yScale(value);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + plotW, y);
+    ctx.stroke();
+    ctx.fillText(fmt(value, 3), pad.left - 8, y);
+  }
+
+  const startTick = Math.ceil(minX);
+  const endTick = Math.floor(maxX);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let tick = startTick; tick <= endTick; tick++) {
+    const x = xScale(tick);
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, pad.top + plotH);
+    ctx.stroke();
+    ctx.fillText(`10^${tick}`, x, pad.top + plotH + 8);
+  }
+
+  ctx.fillStyle = "#666";
+  ctx.fillText("Dose (log scale)", pad.left + plotW / 2, h - 16);
+  ctx.save();
+  ctx.translate(16, pad.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.fillText("Response", 0, 0);
+  ctx.restore();
+
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--curve").trim();
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i <= 360; i++) {
+    const lx = minX + (maxX - minX) * i / 360;
+    const x = xScale(lx);
+    const y = yScale(fourPL(Math.pow(10, lx), fit.params));
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--point").trim();
+  for (const row of data) {
+    const x = xScale(Math.log10(row.dose));
+    const y = yScale(row.response);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+function update() {
+  const data = parseRows();
+  const invalidDoseCount = data.filter((row) => row.dose <= 0).length;
+  currentFit = fit4PL(data);
+  if (invalidDoseCount) {
+    warning.style.display = "block";
+    warning.textContent = `${invalidDoseCount} row${invalidDoseCount === 1 ? "" : "s"} skipped because dose is not positive.`;
+  } else if (data.length < 5) {
+    warning.style.display = "block";
+    warning.textContent = "Enter at least five numeric rows with positive doses.";
+  } else {
+    warning.style.display = "none";
+    warning.textContent = "";
+  }
+  const validData = currentFit ? currentFit.data : data.filter((row) => row.dose > 0);
+  renderStats(currentFit);
+  renderTransformed(validData, currentFit);
+  drawChart(validData, currentFit);
+}
+
+dataBody.addEventListener("input", (event) => {
+  const input = event.target.closest("input");
+  if (!input) return;
+  rows[Number(input.dataset.index)][input.dataset.field] = input.value;
+  update();
+});
+
+dataBody.addEventListener("click", (event) => {
+  const button = event.target.closest("button.remove");
+  if (!button) return;
+  rows.splice(Number(button.dataset.index), 1);
+  if (rows.length === 0) rows.push({ dose: "", response: "" });
+  renderDataTable();
+  update();
+});
+
+document.getElementById("addRowBtn").addEventListener("click", () => {
+  rows.push({ dose: "", response: "" });
+  renderDataTable();
+  update();
+});
+
+document.getElementById("exampleBtn").addEventListener("click", () => {
+  rows = exampleRows.map((row) => ({ ...row }));
+  renderDataTable();
+  update();
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  rows = [{ dose: "", response: "" }, { dose: "", response: "" }, { dose: "", response: "" }, { dose: "", response: "" }, { dose: "", response: "" }];
+  renderDataTable();
+  update();
+});
+
+document.getElementById("doseUnit").addEventListener("input", update);
+document.getElementById("responseUnit").addEventListener("input", update);
+window.addEventListener("resize", () => drawChart(currentFit ? currentFit.data : parseRows().filter((row) => row.dose > 0), currentFit));
+
+renderDataTable();
+update();
+</script>
+</body>
+</html>
