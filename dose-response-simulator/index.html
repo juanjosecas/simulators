@@ -258,6 +258,16 @@ th {
   border-radius: 50%;
   background: var(--point);
 }
+.leg-swatch.marker {
+  height: 0;
+  background: transparent;
+  border-top: 2px dashed #777;
+}
+.leg-swatch.ec50 {
+  height: 0;
+  background: transparent;
+  border-top: 2px dashed #b57918;
+}
 
 canvas {
   width: 100%;
@@ -410,6 +420,8 @@ canvas {
         <div class="legend">
           <span class="leg-item"><i class="leg-swatch point"></i>Observed</span>
           <span class="leg-item"><i class="leg-swatch"></i>Fitted 4PL</span>
+          <span class="leg-item"><i class="leg-swatch marker"></i>Bottom / Top</span>
+          <span class="leg-item"><i class="leg-swatch ec50"></i>EC50</span>
         </div>
       </section>
 
@@ -699,6 +711,8 @@ function drawChart(data, fit) {
   maxX += xPad;
 
   const ys = data.map((row) => row.response);
+  const [bottom, top, logEC50] = fit.params;
+  ys.push(bottom, top);
   for (let i = 0; i <= 240; i++) {
     const lx = minX + (maxX - minX) * i / 240;
     ys.push(fourPL(Math.pow(10, lx), fit.params));
@@ -766,6 +780,8 @@ function drawChart(data, fit) {
   }
   ctx.stroke();
 
+  drawFitMarkers(fit, { pad, plotW, plotH, minX, maxX, minY, maxY, xScale, yScale });
+
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--point").trim();
   for (const row of data) {
     const x = xScale(Math.log10(row.dose));
@@ -776,6 +792,63 @@ function drawChart(data, fit) {
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 1.5;
     ctx.stroke();
+  }
+}
+
+function drawFitMarkers(fit, chartState) {
+  const { pad, plotW, plotH, minX, maxX, minY, maxY, xScale, yScale } = chartState;
+  const [bottom, top, logEC50] = fit.params;
+  const ec50 = Math.pow(10, logEC50);
+  const midResponse = bottom + (top - bottom) / 2;
+  const doseUnit = document.getElementById("doseUnit").value.trim();
+  const responseUnit = document.getElementById("responseUnit").value.trim();
+
+  const drawHorizontalMarker = (value, label, alignTop) => {
+    if (value < minY || value > maxY) return;
+    const y = yScale(value);
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = "#777";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + plotW, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#555";
+    ctx.textAlign = "left";
+    ctx.textBaseline = alignTop ? "top" : "bottom";
+    ctx.fillText(`${label} ${fmt(value, 4)}${responseUnit ? " " + responseUnit : ""}`, pad.left + 8, y + (alignTop ? 5 : -5));
+    ctx.restore();
+  };
+
+  drawHorizontalMarker(bottom, "Min/Bottom", false);
+  drawHorizontalMarker(top, "Max/Top", true);
+
+  if (logEC50 >= minX && logEC50 <= maxX) {
+    const x = xScale(logEC50);
+    const y = yScale(midResponse);
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "#b57918";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, pad.top + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#b57918";
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#6f4d13";
+    ctx.textAlign = x > pad.left + plotW * 0.72 ? "right" : "left";
+    ctx.textBaseline = y < pad.top + 22 ? "top" : "bottom";
+    ctx.fillText(`EC50 ${fmt(ec50, 4)}${doseUnit ? " " + doseUnit : ""}`, x + (ctx.textAlign === "right" ? -7 : 7), y + (ctx.textBaseline === "top" ? 14 : -8));
+    ctx.restore();
   }
 }
 
