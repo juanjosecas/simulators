@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receptor-Ligand Simulator</title>
+<style>
+:root {
+  --bg: #f4f4f1;
+  --surface: #ffffff;
+  --border: #d0d0cc;
+  --border2: #e8e8e4;
+  --text: #1c1c1c;
+  --muted: #666;
+  --accent: #1a5faa;
+  --danger: #b44935;
+  --blue: #1a5faa;
+  --red: #c04830;
+  --green: #2a8a66;
+  --gold: #b57918;
+  --purple: #6f4aa8;
+  --grid: #e0e0dc;
+  --panel: 330px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: var(--panel) 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+#topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+#topbar h1 { font-size: 15px; font-weight: 600; }
+#topbar .sub { font-size: 12px; color: var(--muted); }
+#topbar .spacer { flex: 1; }
+#topbar a { font-size: 12px; color: var(--accent); text-decoration: none; }
+#topbar a:hover { text-decoration: underline; }
+
+#panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 14px 14px 20px;
+  overflow-y: auto;
+}
+
+#workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.section-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 12px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border2);
+}
+.section-hdr:first-child { margin-top: 0; }
+
+.ctrl { margin-bottom: 9px; }
+.ctrl label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 3px;
+}
+.lname { font-weight: 500; color: var(--text); font-size: 12px; }
+.lval { font-variant-numeric: tabular-nums; color: var(--accent); font-size: 12px; font-weight: 600; text-align: right; }
+.hint { color: var(--muted); font-size: 10.5px; margin-top: 2px; }
+
+input, select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 7px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+input[type=range] {
+  padding: 0;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+}
+button:hover { background: #174f8c; }
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.control-group[hidden] { display: none; }
+
+#status {
+  display: none;
+  color: var(--danger);
+  background: #fff6f3;
+  border: 1px solid #efc7bd;
+  padding: 8px;
+  margin: 10px 0;
+}
+#status.visible { display: block; }
+
+.note {
+  color: var(--muted);
+  font-size: 12px;
+  border-left: 3px solid var(--border);
+  padding-left: 9px;
+  margin-top: 12px;
+}
+
+#metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.metric {
+  padding: 8px 12px;
+  border-right: 1px solid var(--border2);
+  min-width: 0;
+}
+.metric:last-child { border-right: 0; }
+.metric .value {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.metric .label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#content {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.35fr) minmax(300px, 0.65fr);
+  gap: 14px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  min-width: 0;
+}
+.card h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+#chart {
+  width: 100%;
+  height: 500px;
+  border: 1px solid var(--border2);
+  background: #fbfbf8;
+  display: block;
+}
+
+#legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-line {
+  width: 24px;
+  height: 0;
+  border-top: 3px solid var(--blue);
+}
+.legend-line.dashed { border-top-style: dashed; }
+.legend-line.thin { border-top-width: 2px; }
+.legend-line.red { border-color: var(--red); }
+.legend-line.green { border-color: var(--green); }
+.legend-line.gold { border-color: var(--gold); }
+.legend-line.purple { border-color: var(--purple); }
+.legend-line.baseline { border-color: #777; border-top-style: dashed; border-top-width: 1px; }
+
+#interpretation {
+  color: var(--text);
+  font-size: 13px;
+}
+#interpretation p { margin-bottom: 10px; }
+#interpretation p:last-child { margin-bottom: 0; }
+.formula {
+  color: var(--muted);
+  font-size: 12px;
+  background: #fafafa;
+  border: 1px solid var(--border2);
+  padding: 9px;
+  margin-top: 12px;
+}
+
+@media (max-width: 980px) {
+  #app { grid-template-columns: 1fr; }
+  #panel { border-right: 0; border-bottom: 1px solid var(--border); }
+  #content { grid-template-columns: 1fr; }
+  #metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  #app,
+  #panel,
+  #workspace,
+  #content {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+  }
+  #panel { overflow-x: hidden; }
+  #topbar { flex-wrap: wrap; gap: 4px 12px; }
+  #topbar .sub {
+    flex-basis: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  #topbar .spacer { display: none; }
+  .ctrl label { min-width: 0; }
+  .lval {
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  input[type=range] {
+    display: block;
+    max-width: 100%;
+  }
+  #metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #content { padding: 10px; }
+  #chart { height: 360px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>Receptor-Ligand Simulator</h1>
+    <span class="sub">Theoretical concentration-response curves for agonism and antagonism</span>
+    <span class="spacer"></span>
+    <a href="../index.html">All simulators</a>
+  </div>
+
+  <aside id="panel">
+    <div class="section-hdr">Scenario</div>
+    <div class="ctrl">
+      <label for="scenario"><span class="lname">Scenario</span></label>
+      <select id="scenario">
+        <option value="full">Full agonist</option>
+        <option value="partial">Partial agonist</option>
+        <option value="inverse">Inverse agonist</option>
+        <option value="neutral">Neutral antagonist alone</option>
+        <option value="competitive">Competitive antagonism</option>
+        <option value="partialCompetitive">Partial agonist + competitive antagonist</option>
+        <option value="inverseCompetitive">Inverse agonist + competitive antagonist</option>
+        <option value="noncompetitive">Non-competitive antagonism</option>
+        <option value="fullPartial">Full agonist + partial agonist</option>
+        <option value="partialInverse">Partial inverse agonist</option>
+      </select>
+    </div>
+
+    <div id="status" role="status" aria-live="polite"></div>
+
+    <div class="section-hdr">General</div>
+    <div class="ctrl">
+      <label for="unit"><span class="lname">Concentration unit</span></label>
+      <input id="unit" type="text" value="µM">
+    </div>
+    <div class="ctrl">
+      <label for="basal"><span class="lname">Basal activity</span><span class="lval" id="basalVal"></span></label>
+      <input id="basal" type="range" min="0" max="80" step="1">
+    </div>
+    <div class="ctrl">
+      <label for="minConc"><span class="lname">Minimum concentration</span><span class="lval" id="minConcVal"></span></label>
+      <input id="minConc" type="number" min="0.000001" step="any">
+    </div>
+    <div class="ctrl">
+      <label for="maxConc"><span class="lname">Maximum concentration</span><span class="lval" id="maxConcVal"></span></label>
+      <input id="maxConc" type="number" min="0.000001" step="any">
+    </div>
+
+    <div class="control-group" data-group="single">
+      <div class="section-hdr">Ligand</div>
+      <div class="ctrl">
+        <label for="efficacy"><span class="lname">Efficacy</span><span class="lval" id="efficacyVal"></span></label>
+        <input id="efficacy" type="range" min="-80" max="110" step="1">
+      </div>
+      <div class="ctrl">
+        <label for="ec50"><span class="lname">EC50</span><span class="lval" id="ec50Val"></span></label>
+        <input id="ec50" type="range" min="-3" max="3" step="any">
+        <div class="hint">Slider is log-scaled.</div>
+      </div>
+      <div class="ctrl">
+        <label for="hill"><span class="lname">Hill coefficient</span><span class="lval" id="hillVal"></span></label>
+        <input id="hill" type="range" min="0.2" max="4" step="0.05">
+      </div>
+    </div>
+
+    <div class="control-group" data-group="antagonism">
+      <div class="section-hdr">Agonist</div>
+      <div class="ctrl">
+        <label for="agonistEfficacy"><span class="lname" id="activeLigandEfficacyLabel">Agonist efficacy</span><span class="lval" id="agonistEfficacyVal"></span></label>
+        <input id="agonistEfficacy" type="range" min="-80" max="110" step="1">
+      </div>
+      <div class="ctrl">
+        <label for="agonistEC50"><span class="lname" id="activeLigandEC50Label">Agonist EC50</span><span class="lval" id="agonistEC50Val"></span></label>
+        <input id="agonistEC50" type="range" min="-3" max="3" step="any">
+        <div class="hint">Slider is log-scaled.</div>
+      </div>
+      <div class="ctrl">
+        <label for="agonistHill"><span class="lname">Hill coefficient</span><span class="lval" id="agonistHillVal"></span></label>
+        <input id="agonistHill" type="range" min="0.2" max="4" step="0.05">
+      </div>
+
+      <div class="section-hdr">Antagonist</div>
+      <div class="ctrl">
+        <label for="antagonistConc"><span class="lname">Antagonist concentration</span><span class="lval" id="antagonistConcVal"></span></label>
+        <input id="antagonistConc" type="range" min="-3" max="3" step="any">
+        <div class="hint">Slider is log-scaled.</div>
+      </div>
+      <div class="ctrl">
+        <label for="antagonistKi"><span class="lname">Antagonist Ki</span><span class="lval" id="antagonistKiVal"></span></label>
+        <input id="antagonistKi" type="range" min="-3" max="3" step="any">
+        <div class="hint">Slider is log-scaled.</div>
+      </div>
+    </div>
+
+    <div class="control-group" data-group="competition">
+      <div class="section-hdr">Full agonist</div>
+      <div class="ctrl">
+        <label for="fullEfficacy"><span class="lname">Full agonist efficacy</span><span class="lval" id="fullEfficacyVal"></span></label>
+        <input id="fullEfficacy" type="range" min="0" max="110" step="1">
+      </div>
+      <div class="ctrl">
+        <label for="fullKA"><span class="lname">Full agonist KA</span><span class="lval" id="fullKAVal"></span></label>
+        <input id="fullKA" type="range" min="-3" max="3" step="any">
+      </div>
+      <div class="ctrl">
+        <label for="fullHill"><span class="lname">Full agonist Hill</span><span class="lval" id="fullHillVal"></span></label>
+        <input id="fullHill" type="range" min="0.2" max="4" step="0.05">
+      </div>
+
+      <div class="section-hdr">Partial agonist</div>
+      <div class="ctrl">
+        <label for="partialEfficacy"><span class="lname">Partial agonist efficacy</span><span class="lval" id="partialEfficacyVal"></span></label>
+        <input id="partialEfficacy" type="range" min="0" max="90" step="1">
+      </div>
+      <div class="ctrl">
+        <label for="partialKP"><span class="lname">Partial agonist KP</span><span class="lval" id="partialKPVal"></span></label>
+        <input id="partialKP" type="range" min="-3" max="3" step="any">
+      </div>
+      <div class="ctrl">
+        <label for="partialHill"><span class="lname">Partial agonist Hill</span><span class="lval" id="partialHillVal"></span></label>
+        <input id="partialHill" type="range" min="0.2" max="4" step="0.05">
+      </div>
+      <div class="ctrl">
+        <label for="partialConc"><span class="lname">Fixed partial agonist</span><span class="lval" id="partialConcVal"></span></label>
+        <input id="partialConc" type="range" min="-3" max="3" step="any">
+      </div>
+    </div>
+
+    <button id="resetBtn" type="button">Reset scenario</button>
+    <p class="note">This is a simplified educational representation of concentration-response behavior. It is not a universal mechanistic receptor model.</p>
+  </aside>
+
+  <main id="workspace">
+    <div id="metrics" aria-live="polite"></div>
+    <div id="content">
+      <section class="card">
+        <h2>Concentration-response curves</h2>
+        <canvas id="chart" width="900" height="560" aria-label="Concentration-response curve chart" role="img"></canvas>
+        <div id="legend"></div>
+      </section>
+      <section class="card">
+        <h2>Interpretation</h2>
+        <div id="interpretation"></div>
+        <div class="formula">Response = Basal + Efficacy × occupancy. X-axis values are plotted as log10 concentration.</div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+const state = {
+  scenario: "full",
+  params: {},
+  lastValidParams: {}
+};
+
+const scenarios = {
+  full: {
+    label: "Full agonist",
+    groups: ["single"],
+    defaults: { basal: 10, efficacy: 90, ec50: 1, hill: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  partial: {
+    label: "Partial agonist",
+    groups: ["single"],
+    defaults: { basal: 10, efficacy: 45, ec50: 1, hill: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  inverse: {
+    label: "Inverse agonist",
+    groups: ["single"],
+    defaults: { basal: 40, efficacy: -30, ec50: 1, hill: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  neutral: {
+    label: "Neutral antagonist alone",
+    groups: ["single"],
+    defaults: { basal: 30, efficacy: 0, ec50: 1, hill: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  partialInverse: {
+    label: "Partial inverse agonist",
+    groups: ["single"],
+    defaults: { basal: 40, efficacy: -15, ec50: 1, hill: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  competitive: {
+    label: "Competitive antagonism",
+    groups: ["antagonism"],
+    defaults: { basal: 10, agonistEfficacy: 90, agonistEC50: 1, agonistHill: 1, antagonistConc: 3, antagonistKi: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  partialCompetitive: {
+    label: "Partial agonist + competitive antagonist",
+    groups: ["antagonism"],
+    defaults: { basal: 10, agonistEfficacy: 45, agonistEC50: 1, agonistHill: 1, antagonistConc: 3, antagonistKi: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  inverseCompetitive: {
+    label: "Inverse agonist + competitive antagonist",
+    groups: ["antagonism"],
+    defaults: { basal: 40, agonistEfficacy: -30, agonistEC50: 1, agonistHill: 1, antagonistConc: 3, antagonistKi: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  noncompetitive: {
+    label: "Non-competitive antagonism",
+    groups: ["antagonism"],
+    defaults: { basal: 10, agonistEfficacy: 90, agonistEC50: 1, agonistHill: 1, antagonistConc: 1, antagonistKi: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  },
+  fullPartial: {
+    label: "Full agonist + partial agonist",
+    groups: ["competition"],
+    defaults: { basal: 10, fullEfficacy: 90, fullKA: 1, fullHill: 1, partialEfficacy: 35, partialKP: 0.5, partialHill: 1, partialConc: 1, minConc: 0.001, maxConc: 100, unit: "µM" }
+  }
+};
+
+const controls = {};
+const chart = document.getElementById("chart");
+const ctx = chart.getContext("2d");
+const metricsEl = document.getElementById("metrics");
+const legendEl = document.getElementById("legend");
+const interpretationEl = document.getElementById("interpretation");
+const statusEl = document.getElementById("status");
+
+function getScenarioDefaults(scenario) {
+  return { ...scenarios[scenario].defaults };
+}
+
+function formatNumber(value, digits = 4) {
+  if (!Number.isFinite(value)) return "-";
+  const abs = Math.abs(value);
+  if ((abs >= 10000 || abs < 0.001) && abs !== 0) return value.toExponential(2);
+  return Number(value.toPrecision(digits)).toString();
+}
+
+function concentrationLabel(value) {
+  const unit = state.params.unit || "";
+  return `${formatNumber(value)}${unit ? " " + unit : ""}`;
+}
+
+function logSliderValue(value) {
+  return Math.pow(10, Number(value));
+}
+
+function setLogSlider(id, value) {
+  controls[id].value = Math.log10(Math.max(value, 1e-9));
+}
+
+function hillOccupancy(concentration, ec50, hill) {
+  const c = Math.max(concentration, 1e-12);
+  const ratio = Math.pow(c / ec50, hill);
+  return ratio / (1 + ratio);
+}
+
+function singleLigandEffect(concentration, basal, efficacy, ec50, hill) {
+  return basal + efficacy * hillOccupancy(concentration, ec50, hill);
+}
+
+function isCompetitiveAntagonismScenario(scenario) {
+  return ["competitive", "partialCompetitive", "inverseCompetitive"].includes(scenario);
+}
+
+function getControlIdsForScenario(scenario) {
+  const ids = ["basal", "minConc", "maxConc", "unit"];
+  if (scenarios[scenario].groups.includes("single")) return ids.concat(["efficacy", "ec50", "hill"]);
+  if (scenarios[scenario].groups.includes("antagonism")) return ids.concat(["agonistEfficacy", "agonistEC50", "agonistHill", "antagonistConc", "antagonistKi"]);
+  return ids.concat(["fullEfficacy", "fullKA", "fullHill", "partialEfficacy", "partialKP", "partialHill", "partialConc"]);
+}
+
+function readControls() {
+  const ids = getControlIdsForScenario(state.scenario);
+  const next = { ...state.params };
+  ids.forEach((id) => {
+    if (id === "unit") {
+      next.unit = controls.unit.value.trim() || "units";
+    } else if (["ec50", "agonistEC50", "antagonistConc", "antagonistKi", "fullKA", "partialKP", "partialConc"].includes(id)) {
+      next[id] = logSliderValue(controls[id].value);
+    } else {
+      next[id] = Number(controls[id].value);
+    }
+  });
+  return next;
+}
+
+function validateParameters(params) {
+  const messages = [];
+  const positiveFields = ["minConc", "maxConc", "ec50", "agonistEC50", "antagonistConc", "antagonistKi", "fullKA", "partialKP", "partialConc"];
+  positiveFields.forEach((field) => {
+    if (field in params && (!Number.isFinite(params[field]) || params[field] <= 0)) {
+      messages.push(`${field} must be greater than zero.`);
+    }
+  });
+  ["hill", "agonistHill", "fullHill", "partialHill"].forEach((field) => {
+    if (field in params && (!Number.isFinite(params[field]) || params[field] < 0.2 || params[field] > 4)) {
+      messages.push(`${field} must stay between 0.2 and 4.`);
+    }
+  });
+  ["basal", "efficacy", "agonistEfficacy", "fullEfficacy", "partialEfficacy"].forEach((field) => {
+    if (field in params && !Number.isFinite(params[field])) messages.push(`${field} must be numeric.`);
+  });
+  if (!(params.minConc < params.maxConc)) messages.push("Minimum concentration must be lower than maximum concentration.");
+  return { valid: messages.length === 0, messages };
+}
+
+function updateControlVisibility() {
+  const visibleGroups = scenarios[state.scenario].groups;
+  document.querySelectorAll(".control-group").forEach((group) => {
+    group.hidden = !visibleGroups.includes(group.dataset.group);
+  });
+  const efficacyLabel = document.getElementById("activeLigandEfficacyLabel");
+  const ec50Label = document.getElementById("activeLigandEC50Label");
+  if (state.scenario === "inverseCompetitive") {
+    efficacyLabel.textContent = "Inverse agonist efficacy";
+    ec50Label.textContent = "Inverse agonist EC50";
+  } else if (state.scenario === "partialCompetitive") {
+    efficacyLabel.textContent = "Partial agonist efficacy";
+    ec50Label.textContent = "Partial agonist EC50";
+  } else {
+    efficacyLabel.textContent = "Agonist efficacy";
+    ec50Label.textContent = "Agonist EC50";
+  }
+}
+
+function syncControlsFromState() {
+  const params = state.params;
+  controls.unit.value = params.unit || "µM";
+  controls.basal.value = params.basal;
+  controls.minConc.value = params.minConc;
+  controls.maxConc.value = params.maxConc;
+  if ("efficacy" in params) controls.efficacy.value = params.efficacy;
+  if ("ec50" in params) setLogSlider("ec50", params.ec50);
+  if ("hill" in params) controls.hill.value = params.hill;
+  if ("agonistEfficacy" in params) controls.agonistEfficacy.value = params.agonistEfficacy;
+  if ("agonistEC50" in params) setLogSlider("agonistEC50", params.agonistEC50);
+  if ("agonistHill" in params) controls.agonistHill.value = params.agonistHill;
+  if ("antagonistConc" in params) setLogSlider("antagonistConc", params.antagonistConc);
+  if ("antagonistKi" in params) setLogSlider("antagonistKi", params.antagonistKi);
+  if ("fullEfficacy" in params) controls.fullEfficacy.value = params.fullEfficacy;
+  if ("fullKA" in params) setLogSlider("fullKA", params.fullKA);
+  if ("fullHill" in params) controls.fullHill.value = params.fullHill;
+  if ("partialEfficacy" in params) controls.partialEfficacy.value = params.partialEfficacy;
+  if ("partialKP" in params) setLogSlider("partialKP", params.partialKP);
+  if ("partialHill" in params) controls.partialHill.value = params.partialHill;
+  if ("partialConc" in params) setLogSlider("partialConc", params.partialConc);
+  updateReadouts();
+}
+
+function updateReadouts() {
+  const p = state.params;
+  setText("basalVal", formatNumber(p.basal));
+  setText("minConcVal", concentrationLabel(p.minConc));
+  setText("maxConcVal", concentrationLabel(p.maxConc));
+  setText("efficacyVal", formatNumber(p.efficacy));
+  setText("ec50Val", p.ec50 ? concentrationLabel(p.ec50) : "");
+  setText("hillVal", p.hill ? formatNumber(p.hill) : "");
+  setText("agonistEfficacyVal", p.agonistEfficacy ? formatNumber(p.agonistEfficacy) : "");
+  setText("agonistEC50Val", p.agonistEC50 ? concentrationLabel(p.agonistEC50) : "");
+  setText("agonistHillVal", p.agonistHill ? formatNumber(p.agonistHill) : "");
+  setText("antagonistConcVal", p.antagonistConc ? concentrationLabel(p.antagonistConc) : "");
+  setText("antagonistKiVal", p.antagonistKi ? concentrationLabel(p.antagonistKi) : "");
+  setText("fullEfficacyVal", p.fullEfficacy ? formatNumber(p.fullEfficacy) : "");
+  setText("fullKAVal", p.fullKA ? concentrationLabel(p.fullKA) : "");
+  setText("fullHillVal", p.fullHill ? formatNumber(p.fullHill) : "");
+  setText("partialEfficacyVal", p.partialEfficacy ? formatNumber(p.partialEfficacy) : "");
+  setText("partialKPVal", p.partialKP ? concentrationLabel(p.partialKP) : "");
+  setText("partialHillVal", p.partialHill ? formatNumber(p.partialHill) : "");
+  setText("partialConcVal", p.partialConc ? concentrationLabel(p.partialConc) : "");
+}
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value || "";
+}
+
+function calculateCurves() {
+  const p = state.params;
+  const points = 260;
+  const minLog = Math.log10(p.minConc);
+  const maxLog = Math.log10(p.maxConc);
+  const concentrations = Array.from({ length: points }, (_, i) => Math.pow(10, minLog + (maxLog - minLog) * i / (points - 1)));
+  const curves = [];
+  let computed = {};
+
+  if (["full", "partial", "inverse", "neutral", "partialInverse"].includes(state.scenario)) {
+    curves.push({
+      name: scenarios[state.scenario].label,
+      color: state.scenario === "inverse" || state.scenario === "partialInverse" ? "purple" : state.scenario === "neutral" ? "gold" : state.scenario === "partial" ? "green" : "blue",
+      dash: state.scenario === "neutral",
+      width: state.scenario === "neutral" ? 2 : 3,
+      values: concentrations.map((c) => singleLigandEffect(c, p.basal, p.efficacy, p.ec50, p.hill))
+    });
+    computed = { emax: p.basal + p.efficacy };
+  }
+
+  if (isCompetitiveAntagonismScenario(state.scenario)) {
+    const doseRatio = 1 + p.antagonistConc / p.antagonistKi;
+    const apparentEC50 = p.agonistEC50 * doseRatio;
+    const baseName = state.scenario === "inverseCompetitive" ? "Inverse agonist" : state.scenario === "partialCompetitive" ? "Partial agonist" : "Agonist";
+    curves.push({
+      name: `${baseName} alone`,
+      color: state.scenario === "inverseCompetitive" ? "purple" : state.scenario === "partialCompetitive" ? "green" : "blue",
+      width: 2,
+      values: concentrations.map((c) => singleLigandEffect(c, p.basal, p.agonistEfficacy, p.agonistEC50, p.agonistHill))
+    });
+    curves.push({
+      name: `With competitive antagonist`,
+      color: "red",
+      dash: true,
+      width: 3,
+      values: concentrations.map((c) => singleLigandEffect(c, p.basal, p.agonistEfficacy, apparentEC50, p.agonistHill))
+    });
+    computed = { doseRatio, apparentEC50, emax: p.basal + p.agonistEfficacy };
+  }
+
+  if (state.scenario === "noncompetitive") {
+    const availableFraction = 1 / (1 + p.antagonistConc / p.antagonistKi);
+    const effectiveEfficacy = p.agonistEfficacy * availableFraction;
+    curves.push({
+      name: "Agonist alone",
+      color: "blue",
+      width: 2,
+      values: concentrations.map((c) => singleLigandEffect(c, p.basal, p.agonistEfficacy, p.agonistEC50, p.agonistHill))
+    });
+    curves.push({
+      name: "With non-competitive antagonist",
+      color: "red",
+      dash: true,
+      width: 3,
+      values: concentrations.map((c) => singleLigandEffect(c, p.basal, effectiveEfficacy, p.agonistEC50, p.agonistHill))
+    });
+    computed = { availableFraction, effectiveEfficacy, emax: p.basal + effectiveEfficacy };
+  }
+
+  if (state.scenario === "fullPartial") {
+    curves.push({
+      name: "Full agonist alone",
+      color: "blue",
+      width: 2,
+      values: concentrations.map((c) => singleLigandEffect(c, p.basal, p.fullEfficacy, p.fullKA, p.fullHill))
+    });
+    curves.push({
+      name: "Full agonist + fixed partial agonist",
+      color: "green",
+      dash: true,
+      width: 3,
+      values: concentrations.map((a) => competitiveAgonistResponse(a, p.partialConc, p))
+    });
+    const partialAlone = singleLigandEffect(p.partialConc, p.basal, p.partialEfficacy, p.partialKP, p.partialHill);
+    computed = { partialAlone, fixedPartial: p.partialConc, emax: p.basal + p.fullEfficacy };
+  }
+
+  return { concentrations, curves, computed };
+}
+
+function competitiveAgonistResponse(fullConc, partialConc, p) {
+  const fullTerm = Math.pow(Math.max(fullConc, 1e-12) / p.fullKA, p.fullHill);
+  const partialTerm = Math.pow(Math.max(partialConc, 1e-12) / p.partialKP, p.partialHill);
+  const denominator = 1 + fullTerm + partialTerm;
+  return p.basal + p.fullEfficacy * fullTerm / denominator + p.partialEfficacy * partialTerm / denominator;
+}
+
+function updateMetrics(model) {
+  metricsEl.textContent = "";
+  const p = state.params;
+  const metrics = [{ label: "Basal activity", value: formatNumber(p.basal) }];
+
+  if (["full", "partial", "inverse", "neutral", "partialInverse"].includes(state.scenario)) {
+    metrics.push({ label: "Efficacy", value: formatNumber(p.efficacy) });
+    metrics.push({ label: "EC50", value: concentrationLabel(p.ec50) });
+    metrics.push({ label: "Emax theoretical", value: formatNumber(model.computed.emax) });
+    metrics.push({ label: "Hill slope", value: formatNumber(p.hill) });
+  } else if (isCompetitiveAntagonismScenario(state.scenario)) {
+    const activeLabel = state.scenario === "inverseCompetitive" ? "Inverse EC50" : state.scenario === "partialCompetitive" ? "Partial EC50" : "Agonist EC50";
+    metrics.push({ label: "Efficacy", value: formatNumber(p.agonistEfficacy) });
+    metrics.push({ label: activeLabel, value: concentrationLabel(p.agonistEC50) });
+    metrics.push({ label: "Antagonist", value: concentrationLabel(p.antagonistConc) });
+    metrics.push({ label: "Ki", value: concentrationLabel(p.antagonistKi) });
+    metrics.push({ label: "Dose ratio", value: formatNumber(model.computed.doseRatio) });
+    metrics.push({ label: "Apparent EC50", value: concentrationLabel(model.computed.apparentEC50) });
+  } else if (state.scenario === "noncompetitive") {
+    metrics.push({ label: "Agonist efficacy", value: formatNumber(p.agonistEfficacy) });
+    metrics.push({ label: "Ki", value: concentrationLabel(p.antagonistKi) });
+    metrics.push({ label: "Antagonist", value: concentrationLabel(p.antagonistConc) });
+    metrics.push({ label: "Available fraction", value: formatNumber(model.computed.availableFraction) });
+    metrics.push({ label: "Emax theoretical", value: formatNumber(model.computed.emax) });
+  } else {
+    metrics.push({ label: "Full efficacy", value: formatNumber(p.fullEfficacy) });
+    metrics.push({ label: "Partial efficacy", value: formatNumber(p.partialEfficacy) });
+    metrics.push({ label: "Full KA", value: concentrationLabel(p.fullKA) });
+    metrics.push({ label: "Partial KP", value: concentrationLabel(p.partialKP) });
+    metrics.push({ label: "Fixed partial", value: concentrationLabel(p.partialConc) });
+  }
+
+  metrics.forEach((item) => {
+    const metric = document.createElement("div");
+    metric.className = "metric";
+    const value = document.createElement("div");
+    value.className = "value";
+    value.textContent = item.value;
+    const label = document.createElement("div");
+    label.className = "label";
+    label.textContent = item.label;
+    metric.append(value, label);
+    metricsEl.appendChild(metric);
+  });
+}
+
+function updateInterpretation() {
+  interpretationEl.textContent = "";
+  const paragraphs = {
+    full: [
+      "Potency is read horizontally: lowering EC50 shifts the curve left. Efficacy is read vertically: a full agonist has enough positive efficacy to approach the system maximum.",
+      "Basal activity is the receptor response present with no ligand. The dashed horizontal line marks that constitutive activity."
+    ],
+    partial: [
+      "A partial agonist has positive efficacy but a lower maximum response than a full agonist, even when receptor occupancy is high.",
+      "Changing EC50 alters potency without changing the intrinsic ceiling set by efficacy in this simplified model."
+    ],
+    inverse: [
+      "An inverse agonist has negative efficacy in this representation, reducing response below constitutive basal activity.",
+      "This reflects stabilization of receptor states associated with lower signaling, shown here with a simple Hill occupancy term."
+    ],
+    neutral: [
+      "A neutral antagonist has affinity but no efficacy of its own, so alone it leaves activity at the basal level.",
+      "The flat line is intentional: antagonism becomes visible when another ligand is present."
+    ],
+    partialInverse: [
+      "A partial inverse agonist reduces constitutive activity but has a smaller negative efficacy than a stronger inverse agonist.",
+      "This optional scenario keeps the same simplified Hill model and changes only the sign and magnitude of efficacy."
+    ],
+    competitive: [
+      "A competitive neutral antagonist shifts the agonist curve right by dose ratio = 1 + [B] / Ki. In this superable model, Emax is not reduced.",
+      "The apparent EC50 increases with antagonist concentration or lower Ki, so more agonist is required to reach the same response."
+    ],
+    partialCompetitive: [
+      "The neutral competitive antagonist shifts the partial agonist curve to the right without changing the partial agonist ceiling in this simplified superable model.",
+      "This case separates potency from efficacy: the antagonist changes apparent potency, while the lower Emax still comes from the partial agonist efficacy."
+    ],
+    inverseCompetitive: [
+      "The neutral competitive antagonist shifts the inverse agonist curve to the right, so more inverse agonist is required to reduce constitutive activity.",
+      "The antagonist has no efficacy of its own; it blocks access to the receptor and can oppose the inverse agonist's negative efficacy without producing activation by itself."
+    ],
+    noncompetitive: [
+      "The non-competitive or insuperable case is represented as reduced available receptor capacity: available fraction = 1 / (1 + [B] / Ki).",
+      "This simplified educational model lowers the maximum response rather than merely shifting potency. Real non-competitive antagonism can arise through several mechanisms."
+    ],
+    fullPartial: [
+      "The partial agonist and full agonist compete for the same receptor population, so their curves are not simply added.",
+      "A partial agonist can produce response alone, yet act as a functional antagonist in the presence of a full agonist because it displaces the full agonist while generating a smaller response."
+    ]
+  };
+  paragraphs[state.scenario].forEach((text) => {
+    const p = document.createElement("p");
+    p.textContent = text;
+    interpretationEl.appendChild(p);
+  });
+}
+
+function updateLegend(curves) {
+  legendEl.textContent = "";
+  curves.forEach((curve) => {
+    const item = document.createElement("span");
+    item.className = "legend-item";
+    const line = document.createElement("i");
+    line.className = `legend-line ${curve.color || "blue"}${curve.dash ? " dashed" : ""}${curve.width === 2 ? " thin" : ""}`;
+    const label = document.createElement("span");
+    label.textContent = curve.name;
+    item.append(line, label);
+    legendEl.appendChild(item);
+  });
+  const baseline = document.createElement("span");
+  baseline.className = "legend-item";
+  const line = document.createElement("i");
+  line.className = "legend-line baseline";
+  const label = document.createElement("span");
+  label.textContent = "Basal activity";
+  baseline.append(line, label);
+  legendEl.appendChild(baseline);
+}
+
+function drawChart(model) {
+  const rect = chart.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  chart.width = Math.max(1, Math.floor(rect.width * dpr));
+  chart.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const width = rect.width;
+  const height = rect.height;
+  const pad = { left: 58, right: 18, top: 20, bottom: 50 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#fbfbf8";
+  ctx.fillRect(0, 0, width, height);
+
+  const allY = model.curves.flatMap((curve) => curve.values).concat([state.params.basal]);
+  let minY = Math.min(...allY);
+  let maxY = Math.max(...allY);
+  if (!Number.isFinite(minY) || !Number.isFinite(maxY)) return;
+  if (minY === maxY) { minY -= 10; maxY += 10; }
+  const yPad = Math.max((maxY - minY) * 0.12, 5);
+  minY -= yPad;
+  maxY += yPad;
+
+  const minLog = Math.log10(state.params.minConc);
+  const maxLog = Math.log10(state.params.maxConc);
+  const xScale = (c) => pad.left + (Math.log10(c) - minLog) / (maxLog - minLog) * plotW;
+  const yScale = (y) => pad.top + (maxY - y) / (maxY - minY) * plotH;
+
+  ctx.strokeStyle = "#1c1c1c";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+
+  ctx.font = "11px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+  ctx.fillStyle = "#666";
+  ctx.strokeStyle = getCss("--grid");
+  ctx.lineWidth = 1;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "right";
+  for (let i = 0; i <= 5; i++) {
+    const yValue = minY + (maxY - minY) * i / 5;
+    const y = yScale(yValue);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + plotW, y);
+    ctx.stroke();
+    ctx.fillText(formatNumber(yValue, 3), pad.left - 8, y);
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const startTick = Math.ceil(minLog);
+  const endTick = Math.floor(maxLog);
+  for (let tick = startTick; tick <= endTick; tick++) {
+    const concentration = Math.pow(10, tick);
+    const x = xScale(concentration);
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, pad.top + plotH);
+    ctx.stroke();
+    ctx.fillText(`10^${tick}`, x, pad.top + plotH + 8);
+  }
+
+  const basalY = yScale(state.params.basal);
+  ctx.save();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = "#777";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, basalY);
+  ctx.lineTo(pad.left + plotW, basalY);
+  ctx.stroke();
+  ctx.restore();
+
+  model.curves.forEach((curve) => {
+    ctx.save();
+    ctx.strokeStyle = getCurveColor(curve.color);
+    ctx.lineWidth = curve.width || 2;
+    if (curve.dash) ctx.setLineDash([8, 5]);
+    ctx.beginPath();
+    model.concentrations.forEach((c, i) => {
+      const x = xScale(c);
+      const y = yScale(curve.values[i]);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  ctx.fillStyle = "#666";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(`Concentration (${state.params.unit || "units"}, log scale)`, pad.left + plotW / 2, height - 12);
+  ctx.save();
+  ctx.translate(16, pad.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText("Relative response", 0, 0);
+  ctx.restore();
+}
+
+function getCss(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function getCurveColor(name) {
+  return getCss(`--${name || "blue"}`);
+}
+
+function showValidation(messages) {
+  if (messages.length === 0) {
+    statusEl.classList.remove("visible");
+    statusEl.textContent = "";
+    return;
+  }
+  statusEl.classList.add("visible");
+  statusEl.textContent = messages.join(" ");
+}
+
+function updateAll() {
+  const nextParams = readControls();
+  const validation = validateParameters(nextParams);
+  if (validation.valid) {
+    state.params = nextParams;
+    state.lastValidParams = { ...nextParams };
+    showValidation([]);
+  } else {
+    state.params = { ...state.lastValidParams };
+    showValidation(validation.messages);
+  }
+  updateReadouts();
+  const model = calculateCurves();
+  updateMetrics(model);
+  updateInterpretation();
+  updateLegend(model.curves);
+  drawChart(model);
+}
+
+function resetScenario() {
+  state.scenario = controls.scenario.value;
+  state.params = getScenarioDefaults(state.scenario);
+  state.lastValidParams = { ...state.params };
+  updateControlVisibility();
+  syncControlsFromState();
+  updateAll();
+}
+
+function initControls() {
+  document.querySelectorAll("input, select").forEach((el) => {
+    controls[el.id] = el;
+  });
+  controls.scenario.addEventListener("change", resetScenario);
+  document.getElementById("resetBtn").addEventListener("click", resetScenario);
+  Object.values(controls).forEach((control) => {
+    if (control.id !== "scenario") control.addEventListener("input", updateAll);
+  });
+  window.addEventListener("resize", () => drawChart(calculateCurves()));
+  state.params = getScenarioDefaults(state.scenario);
+  state.lastValidParams = { ...state.params };
+  syncControlsFromState();
+  updateControlVisibility();
+  updateAll();
+}
+
+initControls();
+</script>
+</body>
+</html>

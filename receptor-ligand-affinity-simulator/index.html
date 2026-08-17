@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receptor-Ligand Affinity Simulator</title>
+<style>
+:root {
+  --bg: #f4f4f1;
+  --surface: #ffffff;
+  --border: #d0d0cc;
+  --border2: #e8e8e4;
+  --text: #1c1c1c;
+  --muted: #666;
+  --accent: #1a5faa;
+  --ligand: #c04830;
+  --receptor: #1a5faa;
+  --complex: #2a8a66;
+  --grid: #e0e0dc;
+  --danger: #b44935;
+  --panel: 330px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: var(--panel) 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+#topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+#topbar h1 { font-size: 15px; font-weight: 600; }
+#topbar .sub { color: var(--muted); font-size: 12px; }
+#topbar .spacer { flex: 1; }
+#topbar a { color: var(--accent); font-size: 12px; text-decoration: none; }
+#topbar a:hover { text-decoration: underline; }
+
+#panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 14px 14px 20px;
+}
+
+#workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.section-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 12px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border2);
+}
+.section-hdr:first-child { margin-top: 0; }
+
+.ctrl { margin-bottom: 10px; }
+.ctrl label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 3px;
+}
+.lname { font-weight: 500; font-size: 12px; }
+.lval { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.hint { color: var(--muted); font-size: 10.5px; margin-top: 2px; }
+
+input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 7px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+input[type=range] {
+  padding: 0;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  width: 100%;
+  border: 0;
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+}
+button:hover { background: #174f8c; }
+
+#status {
+  display: none;
+  color: var(--danger);
+  background: #fff6f3;
+  border: 1px solid #efc7bd;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+#status.visible { display: block; }
+
+.note {
+  color: var(--muted);
+  font-size: 12px;
+  border-left: 3px solid var(--border);
+  padding-left: 9px;
+  margin-top: 12px;
+}
+
+#metrics {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.metric {
+  min-width: 0;
+  padding: 8px 12px;
+  border-right: 1px solid var(--border2);
+}
+.metric:last-child { border-right: 0; }
+.metric .value {
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.metric .label {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#content {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(360px, 1fr);
+  gap: 14px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  min-width: 0;
+}
+.card h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.full { grid-column: 1 / -1; }
+
+canvas {
+  width: 100%;
+  height: 300px;
+  border: 1px solid var(--border2);
+  background: #fbfbf8;
+  display: block;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.leg-item { display: inline-flex; align-items: center; gap: 6px; }
+.swatch {
+  width: 22px;
+  height: 0;
+  border-top: 3px solid var(--accent);
+}
+.swatch.ligand { border-color: var(--ligand); }
+.swatch.receptor { border-color: var(--receptor); border-top-style: dashed; }
+.swatch.complex { border-color: var(--complex); }
+
+#molecules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 7px;
+  min-height: 160px;
+  align-items: center;
+}
+.molecule {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(0,0,0,0.16);
+}
+.ligand-dot { background: var(--ligand); }
+.receptor-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px 3px 8px 8px;
+  background: var(--receptor);
+}
+.complex-wrap {
+  padding: 2px;
+  border: 1px solid var(--complex);
+  border-radius: 12px;
+}
+
+#limits p {
+  margin-bottom: 8px;
+}
+#limits p:last-child { margin-bottom: 0; }
+.equation {
+  margin-top: 10px;
+  padding: 9px;
+  color: var(--muted);
+  background: #fafafa;
+  border: 1px solid var(--border2);
+  font-size: 12px;
+}
+
+@media (max-width: 980px) {
+  #app { grid-template-columns: 1fr; }
+  #panel { border-right: 0; border-bottom: 1px solid var(--border); }
+  #metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #content { grid-template-columns: 1fr; }
+  .full { grid-column: auto; }
+}
+
+@media (max-width: 640px) {
+  #topbar { flex-wrap: wrap; gap: 4px 12px; }
+  #topbar .sub { flex-basis: 100%; }
+  #topbar .spacer { display: none; }
+  #metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #content { padding: 10px; }
+  canvas { height: 260px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>Receptor-Ligand Affinity Simulator</h1>
+    <span class="sub">Reversible 1:1 molecular binding: A + R ⇌ AR</span>
+    <span class="spacer"></span>
+    <a href="../index.html">All simulators</a>
+  </div>
+
+  <aside id="panel">
+    <div class="section-hdr">Initial totals</div>
+    <div id="status" role="status" aria-live="polite"></div>
+
+    <div class="ctrl">
+      <label for="ligandTotal"><span class="lname">Ligand total A₀</span><span class="lval" id="ligandTotalVal"></span></label>
+      <input id="ligandTotal" type="range" min="-3" max="3" step="any">
+      <div class="hint">Log-scaled concentration slider.</div>
+    </div>
+    <div class="ctrl">
+      <label for="receptorTotal"><span class="lname">Receptor total R₀</span><span class="lval" id="receptorTotalVal"></span></label>
+      <input id="receptorTotal" type="range" min="-3" max="3" step="any">
+      <div class="hint">Log-scaled concentration slider.</div>
+    </div>
+    <div class="ctrl">
+      <label for="unit"><span class="lname">Concentration unit</span></label>
+      <input id="unit" type="text" value="µM">
+    </div>
+
+    <div class="section-hdr">Rate constants</div>
+    <div class="ctrl">
+      <label for="k1"><span class="lname">Association k₁</span><span class="lval" id="k1Val"></span></label>
+      <input id="k1" type="range" min="-3" max="2" step="any">
+      <div class="hint">Units: 1/(concentration·time).</div>
+    </div>
+    <div class="ctrl">
+      <label for="k2"><span class="lname">Dissociation k₂</span><span class="lval" id="k2Val"></span></label>
+      <input id="k2" type="range" min="-3" max="2" step="any">
+      <div class="hint">Units: 1/time.</div>
+    </div>
+
+    <div class="section-hdr">Simulation</div>
+    <div class="ctrl">
+      <label for="timeWindow"><span class="lname">Time window</span><span class="lval" id="timeWindowVal"></span></label>
+      <input id="timeWindow" type="range" min="1" max="600" step="1">
+    </div>
+
+    <button id="resetBtn" type="button">Reset</button>
+    <p class="note">Totals A₀ and R₀ are mass-balanced. The simulator does not assume that free ligand equals total ligand.</p>
+  </aside>
+
+  <main id="workspace">
+    <div id="metrics" aria-live="polite"></div>
+    <div id="content">
+      <section class="card">
+        <h2>Molecular state at equilibrium</h2>
+        <div id="molecules" aria-label="Molecular representation of free ligand, free receptor and AR complex"></div>
+        <div class="legend">
+          <span class="leg-item"><i class="swatch ligand"></i>Free ligand A</span>
+          <span class="leg-item"><i class="swatch receptor"></i>Free receptor R</span>
+          <span class="leg-item"><i class="swatch complex"></i>Complex AR</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Model limits</h2>
+        <div id="limits">
+          <p>This is a reversible 1:1 binding model with one binding site per receptor and no cooperativity.</p>
+          <p>It represents molecular binding only. It does not include signaling efficacy, receptor activation, allostery, internalization or multiple receptor states.</p>
+          <p>The time course starts from free A₀ and R₀ with no preformed AR complex.</p>
+          <div class="equation">A + R ⇌ AR, Kd = k₂/k₁, KA = k₁/k₂</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Time course</h2>
+        <canvas id="timeChart" width="760" height="360" aria-label="Time evolution of AR, free A and free R" role="img"></canvas>
+        <div class="legend">
+          <span class="leg-item"><i class="swatch complex"></i>[AR]</span>
+          <span class="leg-item"><i class="swatch ligand"></i>[A] free</span>
+          <span class="leg-item"><i class="swatch receptor"></i>[R] free</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Equilibrium occupancy</h2>
+        <canvas id="occupancyChart" width="760" height="360" aria-label="Equilibrium receptor occupancy across total ligand concentration" role="img"></canvas>
+        <div class="legend">
+          <span class="leg-item"><i class="swatch complex"></i>Receptors occupied</span>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+const state = {
+  params: {
+    ligandTotal: 10,
+    receptorTotal: 1,
+    k1: 1,
+    k2: 0.5,
+    timeWindow: 60,
+    unit: "µM"
+  },
+  lastValidParams: null
+};
+
+const controls = {};
+const statusEl = document.getElementById("status");
+const metricsEl = document.getElementById("metrics");
+const moleculesEl = document.getElementById("molecules");
+const timeChart = document.getElementById("timeChart");
+const occupancyChart = document.getElementById("occupancyChart");
+
+function init() {
+  document.querySelectorAll("input").forEach((input) => {
+    controls[input.id] = input;
+    input.addEventListener("input", updateAll);
+  });
+  document.getElementById("resetBtn").addEventListener("click", reset);
+  window.addEventListener("resize", updateAll);
+  state.lastValidParams = { ...state.params };
+  syncControls();
+  updateAll();
+}
+
+function reset() {
+  state.params = {
+    ligandTotal: 10,
+    receptorTotal: 1,
+    k1: 1,
+    k2: 0.5,
+    timeWindow: 60,
+    unit: "µM"
+  };
+  state.lastValidParams = { ...state.params };
+  syncControls();
+  updateAll();
+}
+
+function syncControls() {
+  setLogControl("ligandTotal", state.params.ligandTotal);
+  setLogControl("receptorTotal", state.params.receptorTotal);
+  setLogControl("k1", state.params.k1);
+  setLogControl("k2", state.params.k2);
+  controls.timeWindow.value = state.params.timeWindow;
+  controls.unit.value = state.params.unit;
+  updateReadouts();
+}
+
+function readControls() {
+  return {
+    ligandTotal: fromLogControl("ligandTotal"),
+    receptorTotal: fromLogControl("receptorTotal"),
+    k1: fromLogControl("k1"),
+    k2: fromLogControl("k2"),
+    timeWindow: Number(controls.timeWindow.value),
+    unit: controls.unit.value.trim() || "units"
+  };
+}
+
+function validate(params) {
+  const messages = [];
+  ["ligandTotal", "receptorTotal", "k1", "k2", "timeWindow"].forEach((key) => {
+    if (!Number.isFinite(params[key]) || params[key] <= 0) messages.push(`${key} must be greater than zero.`);
+  });
+  return { valid: messages.length === 0, messages };
+}
+
+function updateAll() {
+  const next = readControls();
+  const validation = validate(next);
+  if (validation.valid) {
+    state.params = next;
+    state.lastValidParams = { ...next };
+    showStatus([]);
+  } else {
+    state.params = { ...state.lastValidParams };
+    showStatus(validation.messages);
+  }
+  updateReadouts();
+  const model = calculateModel(state.params);
+  updateMetrics(model);
+  updateMolecules(model);
+  drawTimeChart(model);
+  drawOccupancyChart(model);
+}
+
+function calculateModel(params) {
+  const kd = params.k2 / params.k1;
+  const ka = params.k1 / params.k2;
+  const arEq = exactEquilibriumComplex(params.ligandTotal, params.receptorTotal, kd);
+  const freeA = params.ligandTotal - arEq;
+  const freeR = params.receptorTotal - arEq;
+  const occupancy = params.receptorTotal > 0 ? arEq / params.receptorTotal : 0;
+  const halfLife = Math.log(2) / params.k2;
+  return {
+    ...params,
+    kd,
+    ka,
+    arEq,
+    freeA,
+    freeR,
+    occupancy,
+    halfLife,
+    timeSeries: calculateTimeSeries(params, arEq),
+    occupancySeries: calculateOccupancySeries(params, kd)
+  };
+}
+
+function exactEquilibriumComplex(ligandTotal, receptorTotal, kd) {
+  const sum = ligandTotal + receptorTotal + kd;
+  const discriminant = Math.max(0, sum * sum - 4 * ligandTotal * receptorTotal);
+  return (sum - Math.sqrt(discriminant)) / 2;
+}
+
+function calculateTimeSeries(params, arEq) {
+  const points = 240;
+  const total = params.ligandTotal + params.receptorTotal + params.k2 / params.k1;
+  const otherRoot = total - arEq;
+  const series = [];
+  for (let i = 0; i < points; i++) {
+    const t = params.timeWindow * i / (points - 1);
+    const ar = reversibleComplexAtTime(t, arEq, otherRoot, params.k1);
+    series.push({ t, ar, freeA: params.ligandTotal - ar, freeR: params.receptorTotal - ar });
+  }
+  return series;
+}
+
+function reversibleComplexAtTime(t, lowerRoot, upperRoot, k1) {
+  if (upperRoot <= 0 || Math.abs(upperRoot - lowerRoot) < 1e-12) return lowerRoot;
+  const y0 = lowerRoot / upperRoot;
+  const y = y0 * Math.exp(k1 * (lowerRoot - upperRoot) * t);
+  const ar = (lowerRoot - y * upperRoot) / (1 - y);
+  return Number.isFinite(ar) ? Math.max(0, Math.min(lowerRoot, ar)) : lowerRoot;
+}
+
+function calculateOccupancySeries(params, kd) {
+  const points = 240;
+  const minLigand = Math.max(1e-6, params.ligandTotal / 1000);
+  const maxLigand = Math.max(minLigand * 1000, params.ligandTotal * 100);
+  const minLog = Math.log10(minLigand);
+  const maxLog = Math.log10(maxLigand);
+  const series = [];
+  for (let i = 0; i < points; i++) {
+    const ligandTotal = Math.pow(10, minLog + (maxLog - minLog) * i / (points - 1));
+    const ar = exactEquilibriumComplex(ligandTotal, params.receptorTotal, kd);
+    series.push({ ligandTotal, occupancy: ar / params.receptorTotal });
+  }
+  return series;
+}
+
+function updateMetrics(model) {
+  metricsEl.textContent = "";
+  [
+    ["Kd", concentration(model.kd, model.unit)],
+    ["KA", `${format(model.ka)} 1/${model.unit}`],
+    ["[AR] eq", concentration(model.arEq, model.unit)],
+    ["Occupied", `${format(100 * model.occupancy)}%`],
+    ["A free", concentration(model.freeA, model.unit)],
+    ["R free", concentration(model.freeR, model.unit)],
+    ["t½ dissociation", `${format(model.halfLife)} time`]
+  ].forEach(([labelText, valueText]) => {
+    const metric = document.createElement("div");
+    metric.className = "metric";
+    const value = document.createElement("div");
+    value.className = "value";
+    value.textContent = valueText;
+    const label = document.createElement("div");
+    label.className = "label";
+    label.textContent = labelText;
+    metric.append(value, label);
+    metricsEl.appendChild(metric);
+  });
+}
+
+function updateMolecules(model) {
+  moleculesEl.textContent = "";
+  const totalSlots = 48;
+  const receptorSlots = Math.max(1, Math.round(totalSlots * Math.min(1, model.receptorTotal / Math.max(model.receptorTotal, model.ligandTotal))));
+  const complexCount = Math.round(receptorSlots * model.occupancy);
+  const freeReceptorCount = Math.max(0, receptorSlots - complexCount);
+  const ligandRatio = model.freeA / Math.max(model.ligandTotal, model.receptorTotal, 1e-12);
+  const freeLigandCount = Math.max(0, Math.min(totalSlots - receptorSlots, Math.round((totalSlots - receptorSlots) * ligandRatio)));
+
+  for (let i = 0; i < complexCount; i++) appendMolecule("complex");
+  for (let i = 0; i < freeReceptorCount; i++) appendMolecule("receptor");
+  for (let i = 0; i < freeLigandCount; i++) appendMolecule("ligand");
+}
+
+function appendMolecule(type) {
+  const cell = document.createElement("div");
+  cell.className = "molecule";
+  if (type === "complex") {
+    const wrap = document.createElement("span");
+    wrap.className = "complex-wrap";
+    wrap.append(makeDot("ligand-dot"), makeDot("receptor-dot"));
+    cell.appendChild(wrap);
+  } else {
+    cell.appendChild(makeDot(type === "ligand" ? "ligand-dot" : "receptor-dot"));
+  }
+  moleculesEl.appendChild(cell);
+}
+
+function makeDot(className) {
+  const dot = document.createElement("span");
+  dot.className = `dot ${className}`;
+  return dot;
+}
+
+function drawTimeChart(model) {
+  drawLineChart(timeChart, {
+    xLabel: "Time",
+    yLabel: `Concentration (${model.unit})`,
+    xValues: model.timeSeries.map((p) => p.t),
+    series: [
+      { name: "[AR]", color: css("--complex"), values: model.timeSeries.map((p) => p.ar), width: 3 },
+      { name: "[A] free", color: css("--ligand"), values: model.timeSeries.map((p) => p.freeA), width: 2 },
+      { name: "[R] free", color: css("--receptor"), values: model.timeSeries.map((p) => p.freeR), width: 2, dash: true }
+    ],
+    xFormat: (v) => format(v, 3)
+  });
+}
+
+function drawOccupancyChart(model) {
+  drawLineChart(occupancyChart, {
+    xLabel: `Total ligand A₀ (${model.unit}, log scale)`,
+    yLabel: "Receptors occupied (%)",
+    xValues: model.occupancySeries.map((p) => p.ligandTotal),
+    logX: true,
+    series: [
+      { name: "Occupied", color: css("--complex"), values: model.occupancySeries.map((p) => 100 * p.occupancy), width: 3 }
+    ],
+    xFormat: (v) => `10^${Math.round(Math.log10(v))}`
+  });
+}
+
+function drawLineChart(canvas, config) {
+  const ctx = canvas.getContext("2d");
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const width = rect.width;
+  const height = rect.height;
+  const pad = { left: 58, right: 18, top: 20, bottom: 48 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#fbfbf8";
+  ctx.fillRect(0, 0, width, height);
+
+  const rawX = config.xValues;
+  const xValues = config.logX ? rawX.map((v) => Math.log10(v)) : rawX;
+  const yValues = config.series.flatMap((s) => s.values);
+  let minX = Math.min(...xValues);
+  let maxX = Math.max(...xValues);
+  let minY = Math.min(0, ...yValues);
+  let maxY = Math.max(...yValues);
+  if (minX === maxX) { minX -= 1; maxX += 1; }
+  if (minY === maxY) { maxY += 1; }
+  maxY += (maxY - minY) * 0.08;
+
+  const xScale = (x) => pad.left + ((config.logX ? Math.log10(x) : x) - minX) / (maxX - minX) * plotW;
+  const yScale = (y) => pad.top + (maxY - y) / (maxY - minY) * plotH;
+
+  ctx.strokeStyle = "#1c1c1c";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+  ctx.font = "11px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+  ctx.fillStyle = "#666";
+  ctx.strokeStyle = css("--grid");
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "right";
+
+  for (let i = 0; i <= 5; i++) {
+    const yValue = minY + (maxY - minY) * i / 5;
+    const y = yScale(yValue);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + plotW, y);
+    ctx.stroke();
+    ctx.fillText(format(yValue, 3), pad.left - 8, y);
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let i = 0; i <= 4; i++) {
+    const rawValue = rawX[Math.round((rawX.length - 1) * i / 4)];
+    const x = xScale(rawValue);
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, pad.top + plotH);
+    ctx.stroke();
+    ctx.fillText(config.xFormat(rawValue), x, pad.top + plotH + 8);
+  }
+
+  config.series.forEach((series) => {
+    ctx.save();
+    ctx.strokeStyle = series.color;
+    ctx.lineWidth = series.width;
+    if (series.dash) ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    rawX.forEach((xValue, i) => {
+      const x = xScale(xValue);
+      const y = yScale(series.values[i]);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  ctx.fillStyle = "#666";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(config.xLabel, pad.left + plotW / 2, height - 12);
+  ctx.save();
+  ctx.translate(16, pad.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(config.yLabel, 0, 0);
+  ctx.restore();
+}
+
+function updateReadouts() {
+  document.getElementById("ligandTotalVal").textContent = concentration(state.params.ligandTotal, state.params.unit);
+  document.getElementById("receptorTotalVal").textContent = concentration(state.params.receptorTotal, state.params.unit);
+  document.getElementById("k1Val").textContent = format(state.params.k1);
+  document.getElementById("k2Val").textContent = format(state.params.k2);
+  document.getElementById("timeWindowVal").textContent = `${format(state.params.timeWindow)} time`;
+}
+
+function showStatus(messages) {
+  if (messages.length === 0) {
+    statusEl.textContent = "";
+    statusEl.classList.remove("visible");
+  } else {
+    statusEl.textContent = messages.join(" ");
+    statusEl.classList.add("visible");
+  }
+}
+
+function setLogControl(id, value) {
+  controls[id].value = Math.log10(Math.max(value, 1e-12));
+}
+
+function fromLogControl(id) {
+  return Math.pow(10, Number(controls[id].value));
+}
+
+function concentration(value, unit) {
+  return `${format(value)} ${unit}`;
+}
+
+function format(value, digits = 4) {
+  if (!Number.isFinite(value)) return "-";
+  const abs = Math.abs(value);
+  if ((abs >= 10000 || abs < 0.001) && abs !== 0) return value.toExponential(2);
+  return Number(value.toPrecision(digits)).toString();
+}
+
+function css(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+init();
+</script>
+</body>
+</html>
