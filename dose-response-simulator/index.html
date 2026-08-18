@@ -16,12 +16,12 @@
   --danger: #b44935;
   --curve: #1a5faa;
   --point: #c04830;
+  --gold: #b57918;
   --grid: #e1e1dd;
   --panel: 360px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   background: var(--bg);
@@ -30,14 +30,12 @@ body {
   line-height: 1.5;
   overflow-x: hidden;
 }
-
 #app {
   display: grid;
   grid-template-columns: var(--panel) 1fr;
   grid-template-rows: auto 1fr;
   min-height: 100vh;
 }
-
 #topbar {
   grid-column: 1 / -1;
   background: var(--surface);
@@ -47,7 +45,6 @@ body {
   align-items: baseline;
   gap: 16px;
 }
-
 #topbar h1 { font-size: 15px; font-weight: 600; }
 #topbar .sub { font-size: 12px; color: var(--muted); }
 #topbar .spacer { flex: 1; }
@@ -61,13 +58,7 @@ body {
   overflow-y: auto;
   min-width: 0;
 }
-
-#workspace {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
+#workspace { display: flex; flex-direction: column; min-width: 0; }
 .section-hdr {
   font-size: 10px;
   font-weight: 700;
@@ -79,10 +70,14 @@ body {
   border-bottom: 1px solid var(--border2);
 }
 .section-hdr:first-child { margin-top: 0; }
-
-.control { margin-bottom: 9px; }
+.control { margin-bottom: 10px; }
 label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
-
+.help {
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+  margin-top: 3px;
+}
 input {
   width: 100%;
   min-width: 0;
@@ -93,7 +88,6 @@ input {
   color: var(--text);
   font: inherit;
 }
-
 button {
   border: 0;
   border-radius: 3px;
@@ -105,11 +99,7 @@ button {
   font-size: 12px;
 }
 button:hover { background: #174f8c; }
-button.secondary {
-  background: #f1f1ed;
-  color: var(--text);
-  border: 1px solid var(--border);
-}
+button.secondary { background: #f1f1ed; color: var(--text); border: 1px solid var(--border); }
 button.secondary:hover { background: #e9e9e3; }
 button.remove {
   width: 28px;
@@ -120,22 +110,19 @@ button.remove {
   color: var(--danger);
   line-height: 1;
 }
-
 .button-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin: 10px 0 4px;
 }
-
 .note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   border-left: 3px solid var(--border);
   padding-left: 9px;
   margin-top: 12px;
 }
-
 .warning {
   display: none;
   color: var(--danger);
@@ -151,7 +138,6 @@ button.remove {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-
 .stat {
   padding: 8px 12px;
   border-right: 1px solid var(--border2);
@@ -173,6 +159,14 @@ button.remove {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.stat .smeaning {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.25;
+}
+.stat.fit-quality { background: #fafafa; }
+.stat.fit-quality .sval { color: #555; }
 
 #content {
   display: grid;
@@ -180,7 +174,6 @@ button.remove {
   gap: 14px;
   padding: 14px;
 }
-
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -188,18 +181,69 @@ button.remove {
   padding: 14px;
   min-width: 0;
 }
-.card h2 {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 10px;
-}
+.card h2 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
 .full { grid-column: 1 / -1; }
 
-.table-wrap {
-  width: 100%;
-  overflow-x: auto;
+.model-card {
+  display: grid;
+  grid-template-columns: minmax(300px, .9fr) minmax(420px, 1.6fr);
+  gap: 16px;
+  align-items: start;
 }
+.model-card h2 { grid-column: 1 / -1; margin-bottom: 0; }
+.equation-box {
+  background: #fafafa;
+  border: 1px solid var(--border2);
+  border-left: 4px solid var(--accent);
+  padding: 14px;
+}
+.equation-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+.equation {
+  font-family: Cambria, "Times New Roman", serif;
+  font-size: clamp(17px, 2vw, 23px);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.equation-note {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 8px;
+}
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.param {
+  border: 1px solid var(--border2);
+  padding: 9px 10px;
+  min-width: 0;
+}
+.param-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.param-name { font-weight: 700; }
+.param-symbol {
+  color: var(--accent);
+  font-family: Cambria, "Times New Roman", serif;
+  font-size: 15px;
+}
+.param p { color: var(--muted); font-size: 11px; margin: 0 0 4px; }
+.param .effect { color: var(--text); font-size: 10.5px; }
+.param .effect b { color: var(--accent); }
 
+.table-wrap { width: 100%; overflow-x: auto; }
 table {
   width: 100%;
   min-width: 0;
@@ -214,28 +258,26 @@ th, td {
   white-space: nowrap;
 }
 th:first-child, td:first-child { text-align: left; }
-th {
-  background: #f1f1ed;
-  font-weight: 600;
-}
+th { background: #f1f1ed; font-weight: 600; }
+#dataTable { table-layout: fixed; min-width: 0; }
+#dataTable input { min-width: 0; padding: 5px 6px; text-align: right; }
+#dataTable th, #dataTable td { padding: 5px 4px; }
+#dataTable th:last-child, #dataTable td:last-child { text-align: center; }
 
-#dataTable input {
-  min-width: 0;
-  padding: 5px 6px;
-  text-align: right;
+.input-explainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 0 10px;
 }
-#dataTable {
-  table-layout: fixed;
-  min-width: 0;
+.input-explainer div {
+  padding: 7px 8px;
+  background: #fafafa;
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  font-size: 10.5px;
 }
-#dataTable th,
-#dataTable td {
-  padding: 5px 4px;
-}
-#dataTable th:last-child,
-#dataTable td:last-child {
-  text-align: center;
-}
+.input-explainer b { color: var(--text); }
 
 .legend {
   display: flex;
@@ -246,29 +288,10 @@ th {
   margin-top: 8px;
 }
 .leg-item { display: flex; align-items: center; gap: 5px; }
-.leg-swatch {
-  width: 22px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--curve);
-}
-.leg-swatch.point {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--point);
-}
-.leg-swatch.marker {
-  height: 0;
-  background: transparent;
-  border-top: 2px dashed #777;
-}
-.leg-swatch.ec50 {
-  height: 0;
-  background: transparent;
-  border-top: 2px dashed #b57918;
-}
-
+.leg-swatch { width: 22px; height: 3px; border-radius: 2px; background: var(--curve); }
+.leg-swatch.point { width: 9px; height: 9px; border-radius: 50%; background: var(--point); }
+.leg-swatch.marker { height: 0; background: transparent; border-top: 2px dashed #777; }
+.leg-swatch.ec50 { height: 0; background: transparent; border-top: 2px dashed var(--gold); }
 canvas {
   width: 100%;
   height: 430px;
@@ -277,83 +300,33 @@ canvas {
   display: block;
 }
 
+@media (max-width: 1080px) {
+  .model-card { grid-template-columns: 1fr; }
+  .model-card h2 { grid-column: auto; }
+}
 @media (max-width: 980px) {
   #app { grid-template-columns: 1fr; }
   #panel { border-right: 0; border-bottom: 1px solid var(--border); }
   #content { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 640px) {
-  #app,
-  #panel,
-  #workspace,
-  #content {
-    width: 100%;
-    max-width: 100vw;
-  }
-  #panel {
-    overflow-x: hidden;
-  }
+  #app, #panel, #workspace, #content { width: 100%; max-width: 100vw; }
+  #panel { overflow-x: hidden; }
   #topbar { flex-wrap: wrap; gap: 4px 12px; }
   #topbar .sub { flex-basis: 100%; }
   #topbar .spacer { display: none; }
   #stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .button-row { grid-template-columns: 1fr; }
+  .button-row, .param-grid, .input-explainer { grid-template-columns: 1fr; }
   canvas { height: 340px; }
-  #dataTable,
-  #dataTable thead,
-  #dataTable tbody {
-    display: block;
-  }
-  #dataTable colgroup {
-    display: none;
-  }
-  #dataTable tbody tr {
-    display: block;
-  }
-  #dataTable thead {
-    display: none;
-  }
-  #dataTable th,
-  #dataTable td {
-    display: block;
-    width: auto;
-    border: 0;
-    padding: 3px 0;
-  }
-  #dataTable tbody tr {
-    background: #fafafa;
-    border-top: 1px solid var(--border2);
-    border-left: 1px solid var(--border2);
-    border-right: 1px solid var(--border2);
-    padding: 6px;
-  }
-  #dataTable tbody tr:last-child {
-    border-bottom: 1px solid var(--border2);
-  }
-  #dataTable td[data-label] {
-    display: grid;
-    grid-template-columns: 72px minmax(0, 220px);
-    gap: 6px;
-    align-items: center;
-  }
-  #dataTable input {
-    width: min(220px, calc(100vw - 132px));
-    max-width: 220px;
-  }
-  #dataTable td[data-label]::before {
-    content: attr(data-label);
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 600;
-    text-align: left;
-  }
-  #dataTable td:last-child {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    padding-left: 78px;
-  }
+  #dataTable, #dataTable thead, #dataTable tbody { display: block; }
+  #dataTable colgroup, #dataTable thead { display: none; }
+  #dataTable tbody tr { display: block; background: #fafafa; border: 1px solid var(--border2); border-bottom: 0; padding: 6px; }
+  #dataTable tbody tr:last-child { border-bottom: 1px solid var(--border2); }
+  #dataTable th, #dataTable td { display: block; width: auto; border: 0; padding: 3px 0; }
+  #dataTable td[data-label] { display: grid; grid-template-columns: 72px minmax(0, 220px); gap: 6px; align-items: center; }
+  #dataTable td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: 11px; font-weight: 600; text-align: left; }
+  #dataTable input { width: min(220px, calc(100vw - 132px)); max-width: 220px; }
+  #dataTable td:last-child { display: flex; align-items: center; justify-content: flex-start; padding-left: 78px; }
 }
 </style>
 </head>
@@ -361,7 +334,7 @@ canvas {
 <div id="app">
   <div id="topbar">
     <h1>Dose-Response Simulator</h1>
-    <span class="sub">Four-parameter logistic fit with transformed diagnostics</span>
+    <span class="sub">Four-parameter logistic (4PL) fit and pharmacological interpretation</span>
     <span class="spacer"></span>
     <a href="../index.html">All simulators</a>
   </div>
@@ -369,30 +342,28 @@ canvas {
   <aside id="panel">
     <div class="section-hdr">Units</div>
     <div class="control">
-      <label for="doseUnit">Dose unit</label>
+      <label for="doseUnit">Dose / concentration unit</label>
       <input id="doseUnit" type="text" value="nM">
+      <div class="help">Unit of the independent variable (for example nM, µM, mg/kg). Changing the label does not rescale the numerical data.</div>
     </div>
     <div class="control">
       <label for="responseUnit">Response unit</label>
       <input id="responseUnit" type="text" value="%">
+      <div class="help">Unit of the measured effect (for example %, fluorescence, contraction, enzyme activity).</div>
     </div>
 
     <div class="section-hdr">Dose / Response pairs</div>
     <div class="warning" id="warning"></div>
+    <div class="input-explainer">
+      <div><b>Dose</b><br>Independent variable. In concentration-response experiments it is usually the ligand concentration.</div>
+      <div><b>Response</b><br>Observed biological or pharmacological effect at that dose.</div>
+    </div>
     <div class="table-wrap">
       <table id="dataTable">
         <colgroup>
-          <col style="width: 44%;">
-          <col style="width: 44%;">
-          <col style="width: 12%;">
+          <col style="width: 44%;"><col style="width: 44%;"><col style="width: 12%;">
         </colgroup>
-        <thead>
-          <tr>
-            <th>Dose</th>
-            <th>Response</th>
-            <th></th>
-          </tr>
-        </thead>
+        <thead><tr><th>Dose</th><th>Response</th><th></th></tr></thead>
         <tbody id="dataBody"></tbody>
       </table>
     </div>
@@ -401,19 +372,50 @@ canvas {
       <button id="exampleBtn" type="button" class="secondary">Example</button>
       <button id="clearBtn" type="button" class="secondary">Clear</button>
     </div>
-    <p class="note">Doses must be positive for the log10 transform. The 4PL model is fit as Bottom + (Top - Bottom) / (1 + (EC50 / dose)<sup>Hill</sup>).</p>
+    <p class="note">The four 4PL parameters are fitted from the observations. Doses must be positive because the graph and diagnostics use log10(dose).</p>
   </aside>
 
   <main id="workspace">
     <div id="stats">
-      <div class="stat"><div class="sval" id="bottomValue">-</div><div class="slabel">Bottom</div></div>
-      <div class="stat"><div class="sval" id="topValue">-</div><div class="slabel">Top</div></div>
-      <div class="stat"><div class="sval" id="ec50Value">-</div><div class="slabel">EC50</div></div>
-      <div class="stat"><div class="sval" id="hillValue">-</div><div class="slabel">Hill</div></div>
-      <div class="stat"><div class="sval" id="r2Value">-</div><div class="slabel">R²</div></div>
+      <div class="stat"><div class="sval" id="bottomValue">-</div><div class="slabel">Bottom</div><div class="smeaning">Lower response asymptote</div></div>
+      <div class="stat"><div class="sval" id="topValue">-</div><div class="slabel">Top / Emax</div><div class="smeaning">Upper response asymptote</div></div>
+      <div class="stat"><div class="sval" id="ec50Value">-</div><div class="slabel">EC50</div><div class="smeaning">Potency: half-maximal concentration</div></div>
+      <div class="stat"><div class="sval" id="hillValue">-</div><div class="slabel">Hill slope</div><div class="smeaning">Steepness around EC50</div></div>
+      <div class="stat fit-quality"><div class="sval" id="r2Value">-</div><div class="slabel">R²</div><div class="smeaning">Fit quality, not a 4PL parameter</div></div>
     </div>
 
     <div id="content">
+      <section class="card full model-card">
+        <h2>The 4PL equation used by this simulator</h2>
+        <div class="equation-box">
+          <div class="equation-title">Four-parameter logistic model</div>
+          <div class="equation">Response(d) = Bottom + <span style="white-space:nowrap">(Top − Bottom)</span> / [1 + (EC50 / d)<sup>Hill</sup>]</div>
+          <div class="equation-note">At d = EC50, the predicted response is exactly halfway between Bottom and Top: Bottom + (Top − Bottom)/2.</div>
+        </div>
+        <div class="param-grid">
+          <div class="param">
+            <div class="param-head"><span class="param-name">Bottom</span><span class="param-symbol">E<sub>min</sub></span></div>
+            <p>Lower asymptote of the fitted response. Pharmacologically, it can represent basal activity, background signal, or the minimum attainable effect.</p>
+            <div class="effect"><b>Increase it:</b> the lower plateau moves upward.</div>
+          </div>
+          <div class="param">
+            <div class="param-head"><span class="param-name">Top / Emax</span><span class="param-symbol">E<sub>max</sub></span></div>
+            <p>Upper asymptote. In a stimulatory concentration-response experiment it represents the maximal effect supported by the system and assay.</p>
+            <div class="effect"><b>Increase it:</b> the upper plateau rises; efficacy increases.</div>
+          </div>
+          <div class="param">
+            <div class="param-head"><span class="param-name">EC50</span><span class="param-symbol">EC<sub>50</sub></span></div>
+            <p>Concentration producing 50% of the fitted dynamic range between Bottom and Top. It is a measure of apparent potency, not receptor affinity by itself.</p>
+            <div class="effect"><b>Lower EC50:</b> curve shifts left → greater potency. <b>Higher EC50:</b> shifts right.</div>
+          </div>
+          <div class="param">
+            <div class="param-head"><span class="param-name">Hill slope</span><span class="param-symbol">n<sub>H</sub></span></div>
+            <p>Controls how abruptly response changes around EC50. In this implementation positive values describe increasing curves and negative values decreasing curves.</p>
+            <div class="effect"><b>Larger |Hill|:</b> steeper transition. It should not automatically be interpreted as a stoichiometric binding coefficient.</div>
+          </div>
+        </div>
+      </section>
+
       <section class="card">
         <h2>Observed data and fitted 4PL curve</h2>
         <canvas id="chart" width="900" height="520"></canvas>
@@ -421,7 +423,7 @@ canvas {
           <span class="leg-item"><i class="leg-swatch point"></i>Observed</span>
           <span class="leg-item"><i class="leg-swatch"></i>Fitted 4PL</span>
           <span class="leg-item"><i class="leg-swatch marker"></i>Bottom / Top</span>
-          <span class="leg-item"><i class="leg-swatch ec50"></i>EC50</span>
+          <span class="leg-item"><i class="leg-swatch ec50"></i>EC50 + half-response</span>
         </div>
       </section>
 
@@ -429,20 +431,11 @@ canvas {
         <h2>Transformed data</h2>
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>Dose</th>
-                <th>Response</th>
-                <th>log10 dose</th>
-                <th>Normalized</th>
-                <th>Logit</th>
-                <th>Predicted</th>
-                <th>Residual</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Dose</th><th>Response</th><th>log10 dose</th><th>Normalized</th><th>Logit</th><th>Predicted</th><th>Residual</th></tr></thead>
             <tbody id="transformedBody"></tbody>
           </table>
         </div>
+        <p class="note">Normalized response = (Response − Bottom)/(Top − Bottom). Residual = observed − predicted.</p>
       </section>
     </div>
   </main>
@@ -632,8 +625,8 @@ function renderDataTable() {
   rows.forEach((row, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="Dose"><input type="number" min="0" step="any" value="${row.dose}" data-field="dose" data-index="${index}"></td>
-      <td data-label="Response"><input type="number" step="any" value="${row.response}" data-field="response" data-index="${index}"></td>
+      <td data-label="Dose"><input type="number" min="0" step="any" value="${row.dose}" data-field="dose" data-index="${index}" title="Applied dose or concentration"></td>
+      <td data-label="Response"><input type="number" step="any" value="${row.response}" data-field="response" data-index="${index}" title="Observed biological or pharmacological response"></td>
       <td><button type="button" class="remove" data-index="${index}" title="Remove row">×</button></td>
     `;
     dataBody.appendChild(tr);
@@ -685,11 +678,9 @@ function drawChart(data, fit) {
   const w = rect.width;
   const h = rect.height;
   ctx.clearRect(0, 0, w, h);
-
   const pad = { left: 58, right: 18, top: 20, bottom: 46 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
-
   ctx.fillStyle = "#fbfbf8";
   ctx.fillRect(0, 0, w, h);
 
@@ -739,10 +730,7 @@ function drawChart(data, fit) {
   for (let i = 0; i <= 5; i++) {
     const value = minY + (maxY - minY) * i / 5;
     const y = yScale(value);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, y);
-    ctx.lineTo(pad.left + plotW, y);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
     ctx.fillText(fmt(value, 3), pad.left - 8, y);
   }
 
@@ -752,20 +740,19 @@ function drawChart(data, fit) {
   ctx.textBaseline = "top";
   for (let tick = startTick; tick <= endTick; tick++) {
     const x = xScale(tick);
-    ctx.beginPath();
-    ctx.moveTo(x, pad.top);
-    ctx.lineTo(x, pad.top + plotH);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
     ctx.fillText(`10^${tick}`, x, pad.top + plotH + 8);
   }
 
+  const doseUnit = document.getElementById("doseUnit").value.trim();
+  const responseUnit = document.getElementById("responseUnit").value.trim();
   ctx.fillStyle = "#666";
-  ctx.fillText("Dose (log scale)", pad.left + plotW / 2, h - 16);
+  ctx.fillText(`Dose / concentration${doseUnit ? ` (${doseUnit}, log scale)` : " (log scale)"}`, pad.left + plotW / 2, h - 16);
   ctx.save();
   ctx.translate(16, pad.top + plotH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = "center";
-  ctx.fillText("Response", 0, 0);
+  ctx.fillText(`Response${responseUnit ? ` (${responseUnit})` : ""}`, 0, 0);
   ctx.restore();
 
   ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--curve").trim();
@@ -775,8 +762,7 @@ function drawChart(data, fit) {
     const lx = minX + (maxX - minX) * i / 360;
     const x = xScale(lx);
     const y = yScale(fourPL(Math.pow(10, lx), fit.params));
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
   ctx.stroke();
 
@@ -786,12 +772,8 @@ function drawChart(data, fit) {
   for (const row of data) {
     const x = xScale(Math.log10(row.dose));
     const y = yScale(row.response);
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
   }
 }
 
@@ -810,20 +792,17 @@ function drawFitMarkers(fit, chartState) {
     ctx.setLineDash([5, 4]);
     ctx.strokeStyle = "#777";
     ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(pad.left, y);
-    ctx.lineTo(pad.left + plotW, y);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = "#555";
     ctx.textAlign = "left";
     ctx.textBaseline = alignTop ? "top" : "bottom";
-    ctx.fillText(`${label} ${fmt(value, 4)}${responseUnit ? " " + responseUnit : ""}`, pad.left + 8, y + (alignTop ? 5 : -5));
+    ctx.fillText(`${label} = ${fmt(value, 4)}${responseUnit ? " " + responseUnit : ""}`, pad.left + 8, y + (alignTop ? 5 : -5));
     ctx.restore();
   };
 
-  drawHorizontalMarker(bottom, "Min/Bottom", false);
-  drawHorizontalMarker(top, "Max/Top", true);
+  drawHorizontalMarker(bottom, "Bottom", false);
+  drawHorizontalMarker(top, "Top / Emax", true);
 
   if (logEC50 >= minX && logEC50 <= maxX) {
     const x = xScale(logEC50);
@@ -832,22 +811,19 @@ function drawFitMarkers(fit, chartState) {
     ctx.setLineDash([6, 4]);
     ctx.strokeStyle = "#b57918";
     ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(x, pad.top);
-    ctx.lineTo(x, pad.top + plotH);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(x, y); ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = "#b57918";
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#6f4d13";
     ctx.textAlign = x > pad.left + plotW * 0.72 ? "right" : "left";
     ctx.textBaseline = y < pad.top + 22 ? "top" : "bottom";
-    ctx.fillText(`EC50 ${fmt(ec50, 4)}${doseUnit ? " " + doseUnit : ""}`, x + (ctx.textAlign === "right" ? -7 : 7), y + (ctx.textBaseline === "top" ? 14 : -8));
+    const dx = ctx.textAlign === "right" ? -7 : 7;
+    const dy = ctx.textBaseline === "top" ? 14 : -8;
+    ctx.fillText(`EC50 = ${fmt(ec50, 4)}${doseUnit ? " " + doseUnit : ""}; 50% effect = ${fmt(midResponse, 4)}${responseUnit ? " " + responseUnit : ""}`, x + dx, y + dy);
     ctx.restore();
   }
 }
@@ -901,7 +877,7 @@ document.getElementById("exampleBtn").addEventListener("click", () => {
 });
 
 document.getElementById("clearBtn").addEventListener("click", () => {
-  rows = [{ dose: "", response: "" }, { dose: "", response: "" }, { dose: "", response: "" }, { dose: "", response: "" }, { dose: "", response: "" }];
+  rows = Array.from({ length: 5 }, () => ({ dose: "", response: "" }));
   renderDataTable();
   update();
 });
