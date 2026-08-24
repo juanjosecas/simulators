@@ -36,41 +36,71 @@ Object.values(u).forEach(el=>el.addEventListener('input',()=>{labels();if(el===u
 function bindProb(t){const C=conc(t),ratio=C/(C+K(t));return .06+.88*ratio}
 function tryBind(p){if(p.y<memY-32||p.vy<=0)return false;let hit=null,d=999;for(const r of rec){if(r.bound)continue;const z=Math.abs(r.x-p.x);if(z<15&&z<d){hit=r;d=z}}if(!hit)return false;if(Math.random()<bindProb(p.type)){hit.bound=p.type;return true}p.vy=-Math.abs(p.vy);return false}
 function update(dt){
-  // --- movimiento visual (conserva la sensación de velocidad) ---
-  const speed = +u.spd.value;
-  const dtMove = dt * speed;
+  const speed=+u.spd.value;
+  const dtMove=dt*speed;
 
   for(const p of parts){
-    p.x += p.vx * dtMove;
-    p.y += p.vy * dtMove;
-
-    if(p.x < p.r){ p.x = p.r; p.vx = Math.abs(p.vx); }
-    if(p.x > W - p.r){ p.x = W - p.r; p.vx = -Math.abs(p.vx); }
-    if(p.y < p.r){ p.y = p.r; p.vy = Math.abs(p.vy); }
-    if(p.y > H - p.r){ p.y = H - p.r; p.vy = -Math.abs(p.vy); }
+    p.x+=p.vx*dtMove;
+    p.y+=p.vy*dtMove;
+    if(p.x<p.r){p.x=p.r;p.vx=Math.abs(p.vx)}
+    if(p.x>W-p.r){p.x=W-p.r;p.vx=-Math.abs(p.vx)}
+    if(p.y<p.r){p.y=p.r;p.vy=Math.abs(p.vy)}
   }
 
-  // --- farmacodinámica: seguimiento rápido y amortiguado del valor teórico ---
-  // valor teórico instantáneo para concentraciones actuales
-  const target = responseFor(conc('A'));
+  parts=parts.filter(p=>{
+    if(p.y>memY-2){
+      if(tryBind(p))return false;
+      p.y=memY-3;
+      p.vy=-Math.abs(p.vy);
+    }
+    return true;
+  });
 
-  // filtro de 1er orden críticamente amortiguado (sin oscilación perceptible)
-  // más speed => menor tau => converge más rápido
-  const tau = Math.max(0.08, 0.42 / Math.max(0.25, speed)); // segundos
-  const a = 1 - Math.exp(-dt / tau);
+  for(const r of rec){
+    if(!r.bound)continue;
+    const e=eff(r.bound);
+    const koff=.035+.18*(K(r.bound)/(K(r.bound)+conc(r.bound)+1));
 
-  // clamp de pendiente para evitar “saltos” cuando cambian sliders bruscamente
-  const maxSlopePerSec = 2.8 * Math.max(0.6, speed); // unidades de respuesta/seg
-  const rawStep = (target - currentState.resp) * a;
-  const limStep = Math.max(-maxSlopePerSec * dt, Math.min(maxSlopePerSec * dt, rawStep));
+    if(Math.abs(e)>.01&&Math.random()<dtMove*3.5){
+      signals.push({x:r.x,y:memY+32,life:1,dir:e>0?1:-1,pos:e>0});
+    }
 
-  currentState.resp = Math.max(0, Math.min(1, currentState.resp + limStep));
-  currentState.concA = conc('A');
+    if(Math.random()<koff*dtMove){
+      const t=r.bound;
+      r.bound=null;
+      if(parts.filter(p=>p.type===t).length<visual(conc(t))){
+        const p=mk(t);
+        p.x=r.x;
+        p.y=memY-30;
+        p.vy=-50-Math.random()*45;
+        parts.push(p);
+      }
+    }
+  }
+
+  for(const t of ['A','B']){
+    if(parts.filter(p=>p.type===t).length<visual(conc(t))&&Math.random()<dtMove*10){
+      parts.push(mk(t));
+    }
+  }
+
+  signals.forEach(s=>{s.y+=s.dir*58*dtMove;s.life-=dtMove*.9});
+  signals=signals.filter(s=>s.life>0&&s.y>memY-90&&s.y<H-8);
+
+  const target=responseFor(conc('A'));
+  const tau=Math.max(0.08,0.42/Math.max(0.25,speed));
+  const a=1-Math.exp(-dt/tau);
+  const maxSlopePerSec=2.8*Math.max(0.6,speed);
+  const rawStep=(target-currentState.resp)*a;
+  const limStep=Math.max(-maxSlopePerSec*dt,Math.min(maxSlopePerSec*dt,rawStep));
+
+  currentState.resp=Math.max(0,Math.min(1,currentState.resp+limStep));
+  currentState.concA=conc('A');
 }
-function drawSim(){ctx.clearRect(0,0,W,H);ctx.fillStyle='rgba(59,130,246,.035)';ctx.fillRect(0,0,W,memY-8);ctx.fillStyle='rgba(22,163,74,.025)';ctx.fillRect(0,memY+8,W,H-memY-8);ctx.fillStyle='#a1a1aa';ctx.fillRect(0,memY-7,W,14);ctx.font='14px system-ui';ctx.fillStyle='#71717a';ctx.fillText('Espacio extracelular',18,24);ctx.fillText('Interior celular',18,memY+32);for(const r of rec){const e=r.bound?eff(r.bound):0;ctx.lineWidth=3;ctx.strokeStyle=!r.bound?'#52525b':r.bound==='A'?'#2563eb':'#dc2626';ctx.beginPath();ctx.moveTo(r.x-8,memY-14);ctx.lineTo(r.x-8,memY+15);ctx.quadraticCurveTo(r.x,memY+27,r.x+8,memY+15);ctx.lineTo(r.x+8,memY-14);ctx.stroke();if(r.bound){ctx.fillStyle=r.bound==='A'?'#2563eb':'#dc2626';ctx.beginPath();ctx.arc(r.x,memY-24,7,0,Math.PI*2);ctx.fill();if(e!==0){ctx.font='12px system-ui';ctx.fillStyle=e>0?'#16a34a':'#9333ea';ctx.fillText(e>0?'↑':'↓',r.x-4,memY+43)}}}for(const p of parts){ctx.fillStyle=p.type==='A'?'#2563eb':'#dc2626';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()}for(const s of signals){ctx.globalAlpha=Math.max(0,s.life);ctx.fillStyle=s.pos?'#16a34a':'#9333ea';ctx.beginPath();ctx.arc(s.x,s.y,5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}const nA=rec.filter(r=>r.bound==='A').length,nB=rec.filter(r=>r.bound==='B').length,b=+u.bas.value/100;let rr=b;rr+=eff('A')>=0?(nA/N)*eff('A')*(1-b):(nA/N)*eff('A')*b;rr+=eff('B')>=0?(nB/N)*eff('B')*(1-b):(nB/N)*eff('B')*b;rr=Math.max(0,Math.min(1,rr));q('occA').textContent=Math.round(nA/N*100)+'%';q('occB').textContent=Math.round(nB/N*100)+'%';q('basalStat').textContent=Math.round(b*100)+'%';q('respStat').textContent=Math.round(rr*100)+'%';currentState.concA=conc('A');currentState.resp=rr}
+function drawSim(){ctx.clearRect(0,0,W,H);ctx.fillStyle='rgba(59,130,246,.035)';ctx.fillRect(0,0,W,memY-8);ctx.fillStyle='rgba(22,163,74,.025)';ctx.fillRect(0,memY+8,W,H-memY-8);ctx.fillStyle='#a1a1aa';ctx.fillRect(0,memY-7,W,14);ctx.font='14px system-ui';ctx.fillStyle='#71717a';ctx.fillText('Espacio extracelular',18,24);ctx.fillText('Interior celular',18,memY+32);for(const r of rec){const e=r.bound?eff(r.bound):0;ctx.lineWidth=3;ctx.strokeStyle=!r.bound?'#52525b':r.bound==='A'?'#2563eb':'#dc2626';ctx.beginPath();ctx.moveTo(r.x-8,memY-14);ctx.lineTo(r.x-8,memY+15);ctx.quadraticCurveTo(r.x,memY+27,r.x+8,memY+15);ctx.lineTo(r.x+8,memY-14);ctx.stroke();if(r.bound){ctx.fillStyle=r.bound==='A'?'#2563eb':'#dc2626';ctx.beginPath();ctx.arc(r.x,memY-24,7,0,Math.PI*2);ctx.fill();if(e!==0){ctx.font='12px system-ui';ctx.fillStyle=e>0?'#16a34a':'#9333ea';ctx.fillText(e>0?'↑':'↓',r.x-4,memY+43)}}}for(const p of parts){ctx.fillStyle=p.type==='A'?'#2563eb':'#dc2626';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()}for(const s of signals){ctx.globalAlpha=Math.max(0,s.life);ctx.fillStyle=s.pos?'#16a34a':'#9333ea';ctx.beginPath();ctx.arc(s.x,s.y,5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}const nA=rec.filter(r=>r.bound==='A').length,nB=rec.filter(r=>r.bound==='B').length,b=+u.bas.value/100;q('occA').textContent=Math.round(nA/N*100)+'%';q('occB').textContent=Math.round(nB/N*100)+'%';q('basalStat').textContent=Math.round(b*100)+'%';q('respStat').textContent=Math.round(currentState.resp*100)+'%'}
 function drawPlot(){const w=pc.width,h=pc.height,L=43,R=12,T=12,B=32,xmin=-2,xmax=3;const X=x=>L+(x-xmin)/(xmax-xmin)*(w-L-R),Y=y=>T+(1-y)*(h-T-B);pctx.clearRect(0,0,w,h);pctx.strokeStyle='#e4e4e7';pctx.lineWidth=1;for(let y=0;y<=1.001;y+=.25){pctx.beginPath();pctx.moveTo(L,Y(y));pctx.lineTo(w-R,Y(y));pctx.stroke()}for(let x=-2;x<=3;x++){pctx.beginPath();pctx.moveTo(X(x),T);pctx.lineTo(X(x),h-B);pctx.stroke()}pctx.strokeStyle='#52525b';pctx.beginPath();pctx.moveTo(L,T);pctx.lineTo(L,h-B);pctx.lineTo(w-R,h-B);pctx.stroke();pctx.fillStyle='#52525b';pctx.font='10px system-ui';pctx.textAlign='right';for(let y=0;y<=1.001;y+=.25)pctx.fillText(Math.round(y*100)+'%',L-5,Y(y)+3);pctx.textAlign='center';for(let x=-2;x<=3;x++)pctx.fillText(String(x),X(x),h-B+14);pctx.fillText('log₁₀ concentración A',L+(w-L-R)/2,h-5);pctx.save();pctx.translate(11,T+(h-T-B)/2);pctx.rotate(-Math.PI/2);pctx.fillText('Efecto',0,0);pctx.restore();pctx.strokeStyle='#2563eb';pctx.lineWidth=2;pctx.beginPath();for(let i=0;i<=160;i++){const lx=xmin+(xmax-xmin)*i/160,C=Math.pow(10,lx),yy=responseFor(C),xx=X(lx),py=Y(yy);if(i===0)pctx.moveTo(xx,py);else pctx.lineTo(xx,py)}pctx.stroke();const lxRaw=Math.log10(Math.max(.01,currentState.concA)),lx=Math.max(xmin+.03,Math.min(xmax-.03,lxRaw)),ry=Math.max(0,Math.min(1,currentState.resp)),px=X(lx),py=Y(ry);pctx.save();pctx.strokeStyle='rgba(220,38,38,.35)';pctx.setLineDash([4,4]);pctx.beginPath();pctx.moveTo(px,h-B);pctx.lineTo(px,py);pctx.stroke();pctx.beginPath();pctx.moveTo(L,py);pctx.lineTo(px,py);pctx.stroke();pctx.restore();pctx.fillStyle='rgba(0,0,0,.12)';pctx.beginPath();pctx.arc(px,py,10,0,Math.PI*2);pctx.fill();pctx.fillStyle='#dc2626';pctx.beginPath();pctx.arc(px,py,6,0,Math.PI*2);pctx.fill();pctx.strokeStyle='#fff';pctx.lineWidth=2;pctx.stroke()}
 function loop(t){const dt=Math.min(.04,(t-last)/1000);last=t;if(running)update(dt);drawSim();drawPlot();requestAnimationFrame(loop)}requestAnimationFrame(loop);
-q('pause').addEventListener('click',e=>{running=!running;e.currentTarget.textContent=running?'Pausar':'Continuar';last=performance.now()});q('reset').addEventListener('click',()=>{rec.forEach(r=>r.bound=null);parts=[];signals=[];syncParts();currentState = { concA:+u.ca.value, resp: responseFor(+u.ca.value) };});
+q('pause').addEventListener('click',e=>{running=!running;e.currentTarget.textContent=running?'Pausar':'Continuar';last=performance.now()});q('reset').addEventListener('click',()=>{rec.forEach(r=>r.bound=null);parts=[];signals=[];syncParts();currentState={concA:+u.ca.value,resp:responseFor(+u.ca.value)}});
 })();
 </script>
 </body>
