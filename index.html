@@ -14,127 +14,37 @@
       --accent: #2a5caa;
       --accent-hover: #1e4280;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 15px;
-      line-height: 1.6;
-      min-height: 100vh;
-    }
-
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 32px 0 28px;
-      text-align: center;
-    }
-
-    header h1 {
-      font-size: 22px;
-      font-weight: 600;
-      letter-spacing: -0.3px;
-      color: var(--text);
-    }
-
-    header p {
-      color: var(--muted);
-      font-size: 14px;
-      margin-top: 6px;
-    }
-
-    main {
-      max-width: 760px;
-      margin: 48px auto;
-      padding: 0 24px;
-    }
-
-    .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 16px;
-    }
-
-    .app-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .app-list li a {
-      display: flex;
-      align-items: baseline;
-      gap: 16px;
-      padding: 16px 20px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      text-decoration: none;
-      color: var(--text);
-      transition: border-color 0.1s, background 0.1s;
-    }
-
-    .app-list li a:hover {
-      border-color: var(--accent);
-      background: #f0f5ff;
-    }
-
-    .app-list li a .app-name {
-      font-weight: 500;
-      color: var(--accent);
-      white-space: nowrap;
-      font-size: 15px;
-    }
-
-    .app-list li a .app-desc {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .app-list li a .app-tag {
-      margin-left: auto;
-      font-size: 11px;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      padding: 1px 7px;
-      white-space: nowrap;
-      font-weight: 500;
-    }
-
-    footer {
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-      padding: 40px 24px 32px;
-      border-top: 1px solid var(--border);
-      margin-top: 64px;
-    }
-
-    /* ── To add a new app: copy one <li> inside .app-list ── */
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; min-height: 100vh; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 32px 0 28px; text-align: center; }
+    header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
+    header p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+    main { max-width: 760px; margin: 48px auto; padding: 0 24px; }
+    .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+    .app-list { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+    .app-list li a { display: flex; align-items: baseline; gap: 16px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; text-decoration: none; color: var(--text); transition: border-color 0.1s, background 0.1s; }
+    .app-list li a:hover { border-color: var(--accent); background: #f0f5ff; }
+    .app-list li a .app-name { font-weight: 500; color: var(--accent); white-space: nowrap; font-size: 15px; }
+    .app-list li a .app-desc { color: var(--muted); font-size: 13px; }
+    .app-list li a .app-tag { margin-left: auto; font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 1px 7px; white-space: nowrap; font-weight: 500; }
+    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 40px 24px 32px; border-top: 1px solid var(--border); margin-top: 64px; }
   </style>
 </head>
 <body>
-
 <header>
   <h1>Pharmacology &amp; Biochemistry Simulators</h1>
   <p>Educational tools for pharmacology, biochemistry, pharmacy and biotechnology students.</p>
 </header>
-
 <main>
   <p class="section-label">Available simulators</p>
-
   <ul class="app-list">
-
-    <!-- ── ADD NEW APPS HERE ── copy this <li> block ── -->
-
+    <li>
+      <a href="pharmacodynamic-particle-simulator/index.html">
+        <span class="app-name">Pharmacodynamic Particle Simulator</span>
+        <span class="app-desc">Visualize receptor occupancy, efficacy, agonism, antagonism and inverse agonism with a live dose–response curve</span>
+        <span class="app-tag">Pharmacology</span>
+      </a>
+    </li>
     <li>
       <a href="pk-simulator/index.html">
         <span class="app-name">PK Simulator</span>
@@ -142,7 +52,6 @@
         <span class="app-tag">Pharmacokinetics</span>
       </a>
     </li>
-
     <li>
       <a href="dose-response-simulator/index.html">
         <span class="app-name">Dose-Response Simulator</span>
@@ -150,7 +59,6 @@
         <span class="app-tag">Pharmacology</span>
       </a>
     </li>
-
     <li>
       <a href="receptor-ligand-simulator/index.html">
         <span class="app-name">Receptor–Ligand Simulator</span>
@@ -158,7 +66,6 @@
         <span class="app-tag">Pharmacology</span>
       </a>
     </li>
-
     <li>
       <a href="receptor-ligand-affinity-simulator/index.html">
         <span class="app-name">Receptor–Ligand Affinity Simulator</span>
@@ -166,31 +73,27 @@
         <span class="app-tag">Molecular Biology</span>
       </a>
     </li>
-
-        <li>
+    <li>
       <a href="electrophoresis_sim/preview.html">
         <span class="app-name">Electrophoresis Simulator</span>
         <span class="app-desc">Simulate amino acid electrophoresis on paper — charge and size effects</span>
         <span class="app-tag">Biochemistry</span>
       </a>
     </li>
-
-            <li>
+    <li>
       <a href="tlc_simulator/preview.html">
         <span class="app-name">TLC Simulator</span>
         <span class="app-desc">Simulate thin-layer chromatography — separation of compounds based on polarity</span>
         <span class="app-tag">Organic Chemistry</span>
       </a>
     </li>
-
-     <li>
+    <li>
       <a href="liquid_extraction_simulator/preview.html">
         <span class="app-name">Liquid Extraction Simulator</span>
         <span class="app-desc">Simulate liquid-liquid extraction — separation of compounds based on solubility</span>
         <span class="app-tag">Organic Chemistry</span>
       </a>
     </li>
-
     <li>
       <a href="amino-acid-speciation/index.html">
         <span class="app-name">Amino Acid Speciation Simulator</span>
@@ -198,7 +101,6 @@
         <span class="app-tag">Biochemistry</span>
       </a>
     </li>
-
     <li>
       <a href="fischer-esterification-simulator/index.html">
         <span class="app-name">Fischer Esterification Simulator</span>
@@ -206,17 +108,8 @@
         <span class="app-tag">Organic Chemistry</span>
       </a>
     </li>
-
-
-
-    <!-- ── END OF APP LIST ── -->
-
   </ul>
 </main>
-
-<footer>
-  Open-source educational tools &mdash; MIT License
-</footer>
-
+<footer>Open-source educational tools &mdash; MIT License</footer>
 </body>
 </html>
