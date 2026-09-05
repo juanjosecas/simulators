@@ -4,7 +4,56 @@ import { equilibriumDistribution, ionizedFraction, logD, neutralFraction, trappi
 const root = document.getElementById("app");
 const colors = { a: "#1a5faa", b: "#c04830", neutral: "#666", grid: "#e0e0dc", text: "#1c1c1c" };
 
+const scenarios = {
+  lidocaineAcidicTissue: {
+    name: "Lidocaine — plasma ↔ acidic tissue",
+    compound: "lidocaine",
+    pHA: 7.4,
+    pHB: 6.5,
+    volumeA: 1.0,
+    volumeB: 1.0,
+    note: "Real pharmacological context; pH values are illustrative rather than patient-specific."
+  },
+  naproxenAlkalineUrine: {
+    name: "Naproxen — plasma ↔ alkaline urine",
+    compound: "naproxen",
+    pHA: 7.4,
+    pHB: 8.0,
+    volumeA: 1.0,
+    volumeB: 1.0,
+    note: "Real renal ion-trapping principle; compartment pH values are illustrative."
+  },
+  amphetamineAcidicUrine: {
+    name: "Amphetamine — plasma ↔ acidic urine",
+    compound: "amphetamine",
+    pHA: 7.4,
+    pHB: 5.5,
+    volumeA: 1.0,
+    volumeB: 1.0,
+    note: "Real acid-base principle shown for teaching; not a treatment recommendation."
+  },
+  syntheticAcid: {
+    name: "Synthetic example — weak acid",
+    compound: "customAcid",
+    pHA: 5.0,
+    pHB: 8.0,
+    volumeA: 1.0,
+    volumeB: 1.0,
+    note: "Invented compound and pH gradient. All parameters remain editable."
+  },
+  syntheticBase: {
+    name: "Synthetic example — weak base",
+    compound: "customBase",
+    pHA: 7.0,
+    pHB: 5.0,
+    volumeA: 1.0,
+    volumeB: 1.0,
+    note: "Invented compound and pH gradient. All parameters remain editable."
+  }
+};
+
 let selectedKey = "lidocaine";
+let selectedScenario = "lidocaineAcidicTissue";
 let state = {
   type: "base",
   pKa: 7.94,
@@ -25,6 +74,13 @@ root.innerHTML = `
   </header>
 
   <aside id="panel">
+    <p class="section-hdr">Example</p>
+    <div class="ctrl">
+      <label><span class="lname">Scenario</span></label>
+      <select id="scenario"></select>
+      <p class="hint" id="scenarioNote"></p>
+    </div>
+
     <p class="section-hdr">Compound</p>
     <div class="ctrl">
       <label><span class="lname">Preset</span></label>
@@ -76,6 +132,16 @@ function slider(id, label, min, max, step) {
   </div>`;
 }
 
+const scenarioSelect = document.getElementById("scenario");
+scenarioSelect.innerHTML = Object.entries(scenarios)
+  .map(([key, s]) => `<option value="${key}">${s.name}</option>`)
+  .join("");
+scenarioSelect.value = selectedScenario;
+scenarioSelect.addEventListener("change", () => {
+  selectedScenario = scenarioSelect.value;
+  applyScenario(scenarios[selectedScenario]);
+});
+
 const compoundSelect = document.getElementById("compound");
 compoundSelect.innerHTML = Object.entries(ionTrappingCompounds)
   .map(([key, c]) => `<option value="${key}">${c.name}${c.real ? "" : " — editable"}</option>`)
@@ -102,6 +168,21 @@ window.addEventListener("resize", render);
 syncControls();
 render();
 
+function applyScenario(scenario) {
+  selectedKey = scenario.compound;
+  const compound = ionTrappingCompounds[selectedKey];
+  state.type = compound.type;
+  state.pKa = compound.pKa;
+  state.logP = compound.logP;
+  state.pHA = scenario.pHA;
+  state.pHB = scenario.pHB;
+  state.volumeA = scenario.volumeA;
+  state.volumeB = scenario.volumeB;
+  compoundSelect.value = selectedKey;
+  syncControls();
+  render();
+}
+
 function syncControls() {
   Object.entries(state).forEach(([key, value]) => {
     const el = document.getElementById(key);
@@ -111,6 +192,7 @@ function syncControls() {
 
 function render() {
   const preset = ionTrappingCompounds[selectedKey];
+  const scenario = scenarios[selectedScenario];
   const eq = equilibriumDistribution(state);
   const neutralA = neutralFraction(state.type, state.pHA, state.pKa);
   const neutralB = neutralFraction(state.type, state.pHB, state.pKa);
@@ -119,6 +201,7 @@ function render() {
   const logDA = logD(state.type, state.pHA, state.pKa, state.logP);
   const logDB = logD(state.type, state.pHB, state.pKa, state.logP);
 
+  document.getElementById("scenarioNote").textContent = scenario.note;
   document.getElementById("compoundNote").textContent = preset.note;
   document.getElementById("type").value = state.type;
   ["pKa", "logP", "pHA", "pHB", "volumeA", "volumeB"].forEach(id => {
@@ -136,7 +219,7 @@ function render() {
   renderEquation();
   renderCompartments({ neutralA, neutralB, ionA, ionB, logDA, logDB, eq });
   renderReadout({ neutralA, neutralB, ionA, ionB, logDA, logDB, eq });
-  drawChart(trappingCurve(state), eq.logRatioBA);
+  drawChart(trappingCurve(state));
 }
 
 function renderEquation() {
@@ -179,10 +262,10 @@ function compartment(label, pH, neutral, ionized, logDValue, amountFraction, col
 
 function renderReadout({ neutralA, neutralB, logDA, logDB, eq }) {
   const direction = eq.ratioBA > 1.001
-    ? `The total concentration is higher in B because the neutral form becomes more ionized there.`
+    ? "The total concentration is higher in B because the neutral form becomes more ionized there."
     : eq.ratioBA < 0.999
-      ? `The total concentration is higher in A because the neutral form becomes more ionized there.`
-      : `There is essentially no pH-driven concentration gradient.`;
+      ? "The total concentration is higher in A because the neutral form becomes more ionized there."
+      : "There is essentially no pH-driven concentration gradient.";
 
   const typeRule = state.type === "acid"
     ? "Weak acids become more ionized as pH rises, so they are trapped preferentially in the more alkaline compartment."
